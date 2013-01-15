@@ -105,20 +105,34 @@ GR2gtf <- function(regions, filename, feature.type="experimental_feature", src="
   write.table(tab, file=filename, sep="\t", quote=F, row.names=F, col.names=F, ...)
 }
 
-bed2GR <- function(filename) {
+bed2GR <- function(filename, nfields=6) {
+  stopifnot(nfields >= 3)
   # read BED into genomic ranges
   require(GenomicRanges)
-  regions = scan(filename, what=list(character(), numeric(), numeric(), character(), numeric(), character()), sep="\t")
+  what = list(character(), numeric(), numeric(), character(), numeric(), character())
+  what = what[1:nfields]
+  regions = scan(filename, what=what, sep="\t")
 
-  strand = regions[[6]]
-  strand[strand == "."] = "*"
+  if (nfields >= 6) {
+    strand = regions[[6]]
+    strand[strand == "."] = "*"
+  } else {
+    strand = "*"
+  }
 
   # Subtract 1 from "end" because intervals in BED files are half open (end is
   # not included in the range), whereas GRanges objects expect closed intervals.
   gr = GRanges(seqnames=regions[[1]],
-    ranges=IRanges(start=regions[[2]], end=regions[[3]] - 1),
-    strand=strand, name=regions[[4]], score=regions[[5]])
+    ranges=IRanges(start=regions[[2]], end=regions[[3]] - 1), strand=strand)
 
+  if (nfields >= 4) {
+    names(gr) = regions[[4]]
+    elementMetadata(gr) = DataFrame(name=regions[[4]])
+  }
+  if (nfields >= 5) {
+    elementMetadata(gr) = DataFrame(elementMetadata(gr), score=regions[[5]])
+  }
+  
   return(gr)
 }
 
