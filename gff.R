@@ -214,6 +214,8 @@ getBins <- function(chr=NULL, n=NULL, bin.size=NULL, genome=Rnorvegicus, offset=
 
 # From Matthias 2013-01-15
 # Requires all GRanges to have the same width
+# Suggestions to make faster: use reduce on the granges.subset and ranges
+# instead of range
 coverageBamInGRanges <- function(bam.file, granges, min.mapq=1, reads.collapsed=FALSE, width=NULL) {
   require(GenomicRanges)
   require(Rsamtools)
