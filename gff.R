@@ -132,7 +132,7 @@ bed2GR <- function(filename, nfields=6) {
   if (nfields >= 5) {
     elementMetadata(gr) = DataFrame(elementMetadata(gr), score=regions[[5]])
   }
-  
+
   return(gr)
 }
 
@@ -230,7 +230,7 @@ getBins <- function(chr=NULL, n=NULL, bin.size=NULL, genome=Rnorvegicus, offset=
 # Requires all GRanges to have the same width
 # Suggestions to make faster: use reduce on the granges.subset and ranges
 # instead of range
-coverageBamInGRanges <- function(bam.file, granges, min.mapq=1, reads.collapsed=FALSE, width=NULL) {
+coverageBamInGRanges <- function(bam.file, granges, min.mapq, reads.collapsed=FALSE, width=NULL) {
   require(GenomicRanges)
   require(Rsamtools)
 
@@ -251,7 +251,11 @@ coverageBamInGRanges <- function(bam.file, granges, min.mapq=1, reads.collapsed=
         what = c(what, "qname")
       }
       rds <- scanBam(bam.file,param=ScanBamParam(what=what, which=range(granges.subset)))
-      mapq.test <- rds[[1]]$mapq >= min.mapq & !is.na(rds[[1]]$mapq)
+      if (missing(min.mapq)) {
+        mapq.test = rep(T, length(rds[[1]]$mapq))
+      } else {
+        mapq.test <- rds[[1]]$mapq >= min.mapq & !is.na(rds[[1]]$mapq)
+      }
       if (sum(mapq.test) > 0) {
         if (is.null(width)) {
           width = rds[[1]]$qwidth[mapq.test]
