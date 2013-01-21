@@ -105,13 +105,13 @@ GR2gtf <- function(regions, filename, feature.type="experimental_feature", src="
   write.table(tab, file=filename, sep="\t", quote=F, row.names=F, col.names=F, ...)
 }
 
-bed2GR <- function(filename, nfields=6) {
+bed2GR <- function(filename, nfields=6, skip=0) {
   stopifnot(nfields >= 3)
   # read BED into genomic ranges
   require(GenomicRanges)
   what = list(character(), numeric(), numeric(), character(), numeric(), character())
   what = what[1:nfields]
-  regions = scan(filename, what=what, sep="\t")
+  regions = scan(filename, what=what, sep="\t", skip=skip)
 
   if (nfields >= 6) {
     strand = regions[[6]]
