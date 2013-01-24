@@ -106,28 +106,28 @@ GR2gtf <- function(regions, filename, feature.type="experimental_feature", src="
 }
 
 isProperBEDLine <- function(bedline) {
-	lineArgs <- strsplit(bedline, "\t")[[1]]
-	if (length(lineArgs)>=3){
-		if (!any(is.na(as.integer(lineArgs[2:3])))){
-			if (length(lineArgs)>=5){
-				if (!is.na(as.numeric(lineArgs[5]))){
-					if (all(length(lineArgs)>=6, !any(lineArgs[6]=="+", lineArgs[6]=="-",lineArgs[6]=="*"))){
-						return (-1)
-					}
-					else{
-						return (length(lineArgs))
-					}
-				}
-				else{
-					return (-1)
-				}
-			}
-			else {
-				return (length(lineArgs))
-			}
-		}
-	}
-	return (-1)
+  lineArgs <- strsplit(bedline, "\t")[[1]]
+  if (length(lineArgs)>=3){
+    if (!any(is.na(as.integer(lineArgs[2:3])))){
+      if (length(lineArgs)>=5){
+        if (!is.na(as.numeric(lineArgs[5]))){
+          if (all(length(lineArgs)>=6, !any(lineArgs[6]=="+", lineArgs[6]=="-",lineArgs[6]=="*"))){
+            return (-1)
+          }
+          else{
+            return (length(lineArgs))
+          }
+        }
+        else{
+          return (-1)
+        }
+      }
+      else {
+        return (length(lineArgs))
+      }
+    }
+  }
+  return (-1)
 }
 
 bed2GRWrapper <- function(filename) {
@@ -137,16 +137,16 @@ bed2GRWrapper <- function(filename) {
   nFields <- -1
   lIndex <- 0
   while (all(nFields==-1,lIndex < nLines) ){
-	lIndex <- lIndex + 1
-	nFields <- isProperBEDLine(firstLines[lIndex])
+    lIndex <- lIndex + 1
+    nFields <- isProperBEDLine(firstLines[lIndex])
   }
-  
+
   if (lIndex >= nLines){
-	stop("unable to find a proper bed line in the file")
+    stop("unable to find a proper bed line in the file")
   }
-  
+
   bed2GR(filename, nfields=nFields, skip=lIndex-1)
-  
+
 }
 
 GR2bedMINIMAL <- function(regions, filename) {
