@@ -105,13 +105,64 @@ GR2gtf <- function(regions, filename, feature.type="experimental_feature", src="
   write.table(tab, file=filename, sep="\t", quote=F, row.names=F, col.names=F, ...)
 }
 
-bed2GR <- function(filename, nfields=6) {
+isProperBEDLine <- function(bedline) {
+	lineArgs <- strsplit(bedline, "\t")[[1]]
+	if (length(lineArgs)>=3){
+		if (!any(is.na(as.integer(lineArgs[2:3])))){
+			if (length(lineArgs)>=5){
+				if (!is.na(as.numeric(lineArgs[5]))){
+					if (all(length(lineArgs)>=6, !any(lineArgs[6]=="+", lineArgs[6]=="-",lineArgs[6]=="*"))){
+						return (-1)
+					}
+					else{
+						return (length(lineArgs))
+					}
+				}
+				else{
+					return (-1)
+				}
+			}
+			else {
+				return (length(lineArgs))
+			}
+		}
+	}
+	return (-1)
+}
+
+bed2GRWrapper <- function(filename) {
+  #tries to guess the right number of columns and header lines to be skipped
+  nLines <- 10
+  firstLines <- scan(filename, what=character(), nlines = nLines, sep="\n")
+  nFields <- -1
+  lIndex <- 0
+  while (all(nFields==-1,lIndex < nLines) ){
+	lIndex <- lIndex + 1
+	nFields <- isProperBEDLine(firstLines[lIndex])
+  }
+  
+  if (lIndex >= nLines){
+	stop("unable to find a proper bed line in the file")
+  }
+  
+  bed2GR(filename, nfields=nFields, skip=lIndex-1)
+  
+}
+
+GR2bedMINIMAL <- function(regions, filename) {
+  tab = data.frame(as.character(seqnames(regions)), start(regions), end(regions))
+  #should check whether names, scores, strands and other metadata
+  #are present and add them to the data frame
+  write.table(tab, file=filename, sep="\t", quote=F, row.names=F, col.names=F)
+}
+
+bed2GR <- function(filename, nfields=6, skip=0) {
   stopifnot(nfields >= 3)
   # read BED into genomic ranges
   require(GenomicRanges)
   what = list(character(), numeric(), numeric(), character(), numeric(), character())
   what = what[1:nfields]
-  regions = scan(filename, what=what, sep="\t")
+  regions = scan(filename, what=what, sep="\t", skip=skip)
 
   if (nfields >= 6) {
     strand = regions[[6]]
