@@ -287,3 +287,44 @@ coverageBamInGRanges <- function(bam.file, granges, min.mapq, reads.collapsed=FA
   }
   return(grange.coverage)
 }
+
+# Rewrite of the above function to try to make it faster. Note that the min.mapq
+# filter and reads.collapsed options are not implemented yet.
+coverageBamInGRangesFast <- function(bam.file, granges, width=NULL) {
+  require(GenomicRanges)
+  require(Rsamtools)
+
+  # first check that all granges have the same width
+  w = width(granges[1])
+  stopifnot(all(width(granges) == w))
+
+  seq.names <- as.character(unique(seqnames(granges)))
+  seq.names.in.bam <- names(scanBamHeader(bam.file)[[1]]$targets)
+
+  grange.coverage <- matrix(0, nrow=length(granges), ncol=w)
+  what = c("pos", "mapq", "qwidth")
+  rds <- scanBam(bam.file, param=ScanBamParam(what=what, which=granges))
+
+  # Position of the read relative to the start of the grange
+  read_pos <- lapply(rds, getElement, "pos")
+  relative_pos <- mapply("-", read_pos, start(granges))
+
+  # Iterate through each of the granges since scanBam returns a list of lists.
+  # For loops are slow in R though, this could probably be switched to something
+  # like lapply to make it faster.
+  for (i in seq_along(relative_pos)) {
+    if (length(relative_pos[[i]]) < 1) { next }
+    if (is.null(width)) {
+      width <- rds[[i]]$qwidth
+    }
+    starts <- relative_pos[[i]] + 1
+    ends <- mapply(min, ncol(grange.coverage), starts + width - 1)
+    # Adjust the reads that start before the beginning of the GRange
+    starts2 <- mapply(max, 1, starts)
+    for (j in seq_along(starts2)) {
+      if (ends[[j]] < 1) { next }
+      grange.coverage[i, starts2[[j]]:ends[[j]]] <- grange.coverage[i, starts2[[j]]:ends[[j]]] + 1
+    }
+  }
+  return(grange.coverage)
+}
