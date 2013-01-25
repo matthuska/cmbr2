@@ -242,15 +242,9 @@ countBamInGRangesFast <- function(bam.file, granges) {
   seq.names <- as.character(unique(seqnames(granges)))
   seq.names.in.bam <- names(scanBamHeader(bam.file)[[1]]$targets)
   fields <- c("pos")
-  for (seq.name in seq.names) {
-    if (seq.name %in% seq.names.in.bam) {
-      granges.subset <- granges[seqnames(granges)==seq.name]
-      strand(granges.subset) <- "*"
-      cnts <- countBam(bam.file,param=ScanBamParam(what=fields,which=granges.subset))
-      rds.counts[as.logical(seqnames(granges)==seq.name)] <- cnts$records
-    }
-  }
-  unlist(rds.counts)
+  strand(granges) <- "*"
+  cnts <- countBam(bam.file,param=ScanBamParam(what=fields,which=granges))
+  cnts$records
 }
 
 getBins <- function(chr=NULL, n=NULL, bin.size=NULL, genome=Rnorvegicus, offset=0) {
