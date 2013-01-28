@@ -371,3 +371,55 @@ coverageBamInGRangesFast <- function(bam.file, granges, width=NULL) {
   }
   return(grange.coverage)
 }
+
+# Window based coverage counting
+# 
+# your highness 2013-01-25 helmuth@molgen.mpg.de
+#
+# Equally sized granges necessary
+#
+# TODO: Maybe it is better to use countBamInGRanges for this purpose to count for bins
+#
+# Returns a list of data.frames with window counts for each grange
+coverageBamInGRangesWindows  <- function( bam.file, granges, window.width=300, sliding.window=F, FUN=coverageBamInGRanges, ...) {
+	require( GenomicRanges )
+
+	coverage = FUN( bam.file=bam.file, granges=granges, ... )
+
+	if ( sliding.window ) {
+		half.win.size = window.width / 2
+		window.count = width( granges )[1] / half.win.size - 1
+		window.coverage = do.call( "cbind", lapply(1:window.count, function(i) { rowSums(coverage[ , ((i-1) * half.win.size + 1):((i-1) * half.win.size + window.width)]) }) )
+	} else {
+		window.count = width( granges )[1] / window.width
+		window.coverage = do.call( "cbind", lapply(1:window.count, function(i) { rowSums(coverage[ , ((i-1) * window.width + 1):(i * window.width)]) }) )
+	}
+
+	return (window.coverage)
+}
+
+# Parallel processing for a list of bams (Thanks to Mike Love)
+# 
+# your highness 2013-01-25 helmuth@molgen.mpg.de
+#
+# Takes in a list of bamfiles and does counting on multiple processors
+# The number of processors in determined by the length of the list of bamfiles or directly specified with mc.cores argument
+# The function is provided via FUN parameter. Default is countBamInGRangesFast
+# Extra parameters are given to FUN
+#
+# Returns a list of vectors or data.frames (depending on the plugged in function)
+processListOfBamsInGRanges  <- function( bam.files, granges=granges, mc.cores=NA, FUN=countBamInGRangesFast, ... ) {
+	require(multicore)
+
+	if ( is.na(mc.cores) ) {
+			mc.cores = length( bam.files )
+	}
+	counts = mclapply( 1:length(bam.files), function( i ) { 
+				print( paste("[", Sys.time(), "] Processor", i ,": Retrieving tag count for", bam.files[i], ".") )
+	 			FUN( bam.file=bam.files[i], granges=granges, ... ) 
+	 	}, mc.cores=mc.cores )
+
+	names(counts) = sapply( bam.files, function( file ) { tail( unlist(strsplit( file, "/", fixed=T)), 1 ) } )
+
+	return (counts)
+}
