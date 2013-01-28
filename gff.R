@@ -340,23 +340,21 @@ coverageBamInGRangesFast <- function(bam.file, granges, width=NULL) {
   require(Rsamtools)
 
   # first check that all granges have the same width
-  w = width(granges[1])
+  w <- width(granges[1])
   stopifnot(all(width(granges) == w))
 
   seq.names <- as.character(unique(seqnames(granges)))
   seq.names.in.bam <- names(scanBamHeader(bam.file)[[1]]$targets)
 
   grange.coverage <- matrix(0, nrow=length(granges), ncol=w)
-  what = c("pos", "mapq", "qwidth")
+  what <- c("pos", "mapq", "qwidth")
   rds <- scanBam(bam.file, param=ScanBamParam(what=what, which=granges))
 
   # Position of the read relative to the start of the grange
-  read_pos <- lapply(rds, getElement, "pos")
+  read_pos <- lapply(rds, "[[", "pos")
   relative_pos <- mapply("-", read_pos, start(granges))
 
   # Iterate through each of the granges since scanBam returns a list of lists.
-  # For loops are slow in R though, this could probably be switched to something
-  # like lapply to make it faster.
   for (i in seq_along(relative_pos)) {
     if (length(relative_pos[[i]]) < 1) { next }
     if (is.null(width)) {
