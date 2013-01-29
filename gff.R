@@ -204,6 +204,7 @@ countBamInGRanges <- function(bam.file, granges, min.mapq=NULL, read.width=1) {
   seq.names.in.bam <- names(scanBamHeader(bam.file)[[1]]$targets)
   for (seq.name in seq.names) {
     if (seq.name %in% seq.names.in.bam) {
+			print( paste("[", Sys.time(),"] Started processing count on chromosome", seq.name, "of file", bam.file) )
       granges.subset <- granges[seqnames(granges)==seq.name]
       strand(granges.subset) <- "*"
       rds <- scanBam(bam.file,param=ScanBamParam(what=c("pos","mapq"),which=range(granges.subset)))
@@ -222,6 +223,7 @@ countBamInGRanges <- function(bam.file, granges, min.mapq=NULL, read.width=1) {
     } else {
       rds.counts[as.logical(seqnames(granges)==seq.name)] <- 0
     }
+		print( paste("[", Sys.time(),"] Finished processing count on chromosome", seq.name, "of file", bam.file) )
   }
   rds.counts
 }
@@ -289,6 +291,7 @@ coverageBamInGRanges <- function(bam.file, granges, min.mapq, reads.collapsed=FA
   grange.coverage = matrix(0, nrow=length(granges), ncol=w)
   for (seq.name in seq.names) {
     if (seq.name %in% seq.names.in.bam) {
+			print( paste("[", Sys.time(),"] Started processing coverage on chromosome", seq.name, "of file", bam.file) )
       granges.subset <- granges[seqnames(granges)==seq.name]
       strand(granges.subset) <- "*"
       what = c("pos", "mapq", "qwidth")
@@ -323,6 +326,7 @@ coverageBamInGRanges <- function(bam.file, granges, min.mapq, reads.collapsed=FA
         cvg = t(sapply(v, as.numeric))
         grange.coverage[as.logical(seqnames(granges)==seq.name),] <- cvg
       }
+			print( paste("[", Sys.time(),"] Finished processing coverage on chromosome", seq.name, "of file", bam.file) )
     }
   }
   # reverse the ones on the minus strand
