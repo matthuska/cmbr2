@@ -150,10 +150,25 @@ bed2GRWrapper <- function(filename) {
 }
 
 GR2bedMINIMAL <- function(regions, filename) {
+	require(GenomicRanges)
+
   tab = data.frame(as.character(seqnames(regions)), start(regions), end(regions))
   #should check whether names, scores, strands and other metadata
   #are present and add them to the data frame
   write.table(tab, file=filename, sep="\t", quote=F, row.names=F, col.names=F)
+}
+
+# write a GR object into a bed file and all meta data as additional columns
+GR2bed <- function( regions, filename, ... ) {
+	require(GenomicRanges)
+
+	strnd = as.character(strand(regions))
+	strnd[strnd == "*"] = "."
+	
+	tab = data.frame(as.character(seqnames(regions)), as.numeric(start(regions)), as.numeric(end(regions)), as.data.frame(elementMetadata(regions), sep="\t"), stringsAsFactors=F)
+	#colnames(tab) = c("chr", "start", "end", names(elementMetadata(regions)))
+
+	write.table(tab, file=filename, sep="\t", quote=F, row.names=F, col.names=F, ...)
 }
 
 bed2GR <- function(filename, nfields=6, skip=0) {
