@@ -333,47 +333,75 @@ coverageBamInGRanges <- function(bam.file, granges, min.mapq, reads.collapsed=FA
   return(grange.coverage)
 }
 
-# Rewrite of the above function to try to make it faster. Note that the min.mapq
-# filter and reads.collapsed options are not implemented yet.
-coverageBamInGRangesFast <- function(bam.file, granges, width=NULL) {
-  require(GenomicRanges)
-  require(Rsamtools)
-
+##' A fast(er) function to calculate coverage across a set of GRanges.
+##'
+##' An alternative version of the coverageBamInGRanges() function. Unlike that
+##' function you can not filter the reads by mapping quality or collapse reads
+##' (what does that even do?). Also unlike that function this one is pretty
+##' fast. Calculating coverage across 6 bam files for 33,000 ranges, each of
+##' which was 3kb in length took about 4.5 minutes with this function and
+##' approximately an hour with the old function.
+##'
+##' TODO: add an option to return positive and negative strand coverage
+##' separately.
+##'
+##' TODO: allow filtering by min.mapq
+##'
+##' TODO: consider the strand of the reads. Right now the start of the read is
+##' always the "left-most" or "lowest" position (as returned by scanBam)
+##'
+##' @param bam.file the full path to a bam file. It should have an associated
+##' index with the same name and .bai at the end.
+##' @param granges a GRanges object where all ranges have the same width
+##' @param frag.width an optional parameter to force the fragment width to
+##' something other than the read width contained in the bam file. By default
+##' the qwidth contained in the bam file is used.
+##' @return a length(granges) x width(granges) dimension matrix where each row
+##' is a grange and each column is a base pair relative to the start of the
+##' GRange.
+##' @author Matthew Huska
+coverageBamInGRangesFast <- function(bam.file, granges, frag.width=NULL) {
+  require(GenomicRanges, quietly=TRUE)
+  require(Rsamtools, quietly=TRUE)
   # first check that all granges have the same width
   w <- width(granges[1])
   stopifnot(all(width(granges) == w))
-
-  seq.names <- as.character(unique(seqnames(granges)))
-  seq.names.in.bam <- names(scanBamHeader(bam.file)[[1]]$targets)
-
-  grange.coverage <- matrix(0, nrow=length(granges), ncol=w)
   what <- c("pos", "mapq", "qwidth")
-  rds <- scanBam(bam.file, param=ScanBamParam(what=what, which=granges))
-
-  # Position of the read relative to the start of the grange
-  read_pos <- lapply(rds, "[[", "pos")
-  relative_pos <- mapply("-", read_pos, start(granges))
-
-  # Iterate through each of the granges since scanBam returns a list of lists.
-  for (i in seq_along(relative_pos)) {
-    if (length(relative_pos[[i]]) < 1) { next }
-    if (is.null(width)) {
-      width <- rds[[i]]$qwidth
-    }
-    starts <- relative_pos[[i]] + 1
-    ends <- mapply(min, ncol(grange.coverage), starts + width - 1)
-    # Adjust the reads that start before the beginning of the GRange
-    starts2 <- mapply(max, 1, starts)
-    for (j in seq_along(starts2)) {
-      if (ends[[j]] < 1) { next }
-      grange.coverage[i, starts2[[j]]:ends[[j]]] <- grange.coverage[i, starts2[[j]]:ends[[j]]] + 1
-    }
+  if (is.null(frag.width)) {
+    rds <- scanBam(bam.file, param=ScanBamParam(what=what, which=granges))
+  } else {
+    # Extend the width of our granges by "frag.width" in order to catch overlaps
+    # that are further away from the ends of our ranges than the actual read
+    # width (qwidth). This only matters when frag.width > qwidth.
+    rds <- scanBam(bam.file, param=ScanBamParam(what=what, which=resize(granges, width(granges) + 2*frag.width, fix="center")))
   }
-  return(grange.coverage)
+  read_pos <- lapply(rds, "[[", "pos")
+  # Position of the read relative to the start of the grange
+  relative_pos <- mapply("-", read_pos, start(granges) - 1)
+  starts <- lapply(relative_pos, function(s) { s[s < 1] <- 1; s[s > w] <- w; s })
+  if (is.null(frag.width)) {
+    widths <- lapply(rds, "[[", "qwidth")
+    ends <- mapply(function(x,y,w) {e <- x + y; e[e > w] <- w; e[e < 1] <- 1; e}, relative_pos, widths, w)
+  } else {
+    ends <- mapply(function(x,y,w) {e <- x + y; e[e > w] <- w; e[e < 1] <- 1; e}, relative_pos, frag.width, w)
+  }
+  start_counts <- lapply(starts, tabulate, nbins=w)
+  end_counts <- lapply(ends, tabulate, nbins=w)
+  start_sums <- lapply(start_counts, cumsum)
+  end_sums <- lapply(end_counts, cumsum)
+  grange.coverage <- do.call(rbind, start_sums) - do.call(rbind, end_sums)
+
+  # reverse the ones on the minus strand
+  minus <- as.logical(strand(granges) == "-")
+  if (any(minus)) {
+    grange.coverage[minus,] <- t(apply(grange.coverage[minus,], 1, rev))
+  }
+
+  invisible(grange.coverage)
 }
 
 # Window based coverage counting
-# 
+#
 # your highness 2013-01-25 helmuth@molgen.mpg.de
 #
 # Equally sized granges necessary
@@ -382,24 +410,24 @@ coverageBamInGRangesFast <- function(bam.file, granges, width=NULL) {
 #
 # Returns a list of data.frames with window counts for each grange
 coverageBamInGRangesWindows  <- function( bam.file, granges, window.width=300, sliding.window=F, FUN=coverageBamInGRanges, ...) {
-	require( GenomicRanges )
+  require( GenomicRanges )
 
-	coverage = FUN( bam.file=bam.file, granges=granges, ... )
+  coverage = FUN( bam.file=bam.file, granges=granges, ... )
 
-	if ( sliding.window ) {
-		half.win.size = window.width / 2
-		window.count = width( granges )[1] / half.win.size - 1
-		window.coverage = do.call( "cbind", lapply(1:window.count, function(i) { rowSums(coverage[ , ((i-1) * half.win.size + 1):((i-1) * half.win.size + window.width)]) }) )
-	} else {
-		window.count = width( granges )[1] / window.width
-		window.coverage = do.call( "cbind", lapply(1:window.count, function(i) { rowSums(coverage[ , ((i-1) * window.width + 1):(i * window.width)]) }) )
-	}
+  if ( sliding.window ) {
+    half.win.size = window.width / 2
+    window.count = width( granges )[1] / half.win.size - 1
+    window.coverage = do.call( "cbind", lapply(1:window.count, function(i) { rowSums(coverage[ , ((i-1) * half.win.size + 1):((i-1) * half.win.size + window.width)]) }) )
+  } else {
+    window.count = width( granges )[1] / window.width
+    window.coverage = do.call( "cbind", lapply(1:window.count, function(i) { rowSums(coverage[ , ((i-1) * window.width + 1):(i * window.width)]) }) )
+  }
 
-	return (window.coverage)
+  return (window.coverage)
 }
 
 # Parallel processing for a list of bams (Thanks to Mike Love)
-# 
+#
 # your highness 2013-01-25 helmuth@molgen.mpg.de
 #
 # Takes in a list of bamfiles and does counting on multiple processors
@@ -409,17 +437,17 @@ coverageBamInGRangesWindows  <- function( bam.file, granges, window.width=300, s
 #
 # Returns a list of vectors or data.frames (depending on the plugged in function)
 processListOfBamsInGRanges  <- function( bam.files, granges=granges, mc.cores=NA, FUN=countBamInGRangesFast, ... ) {
-	require(multicore)
+  require(multicore)
 
-	if ( is.na(mc.cores) ) {
-			mc.cores = length( bam.files )
-	}
-	counts = mclapply( 1:length(bam.files), function( i ) { 
-				print( paste("[", Sys.time(), "] Processor", i ,": Retrieving tag count for", bam.files[i], ".") )
-	 			FUN( bam.file=bam.files[i], granges=granges, ... ) 
-	 	}, mc.cores=mc.cores )
+  if ( is.na(mc.cores) ) {
+    mc.cores = length( bam.files )
+  }
+  counts = mclapply( 1:length(bam.files), function( i ) {
+    print( paste("[", Sys.time(), "] Processor", i ,": Retrieving tag count for", bam.files[i], ".") )
+    FUN( bam.file=bam.files[i], granges=granges, ... )
+  }, mc.cores=mc.cores )
 
-	names(counts) = sapply( bam.files, function( file ) { tail( unlist(strsplit( file, "/", fixed=T)), 1 ) } )
+  names(counts) = sapply( bam.files, function( file ) { tail( unlist(strsplit( file, "/", fixed=T)), 1 ) } )
 
-	return (counts)
+  return (counts)
 }
