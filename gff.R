@@ -150,10 +150,25 @@ bed2GRWrapper <- function(filename) {
 }
 
 GR2bedMINIMAL <- function(regions, filename) {
+	require(GenomicRanges)
+
   tab = data.frame(as.character(seqnames(regions)), start(regions), end(regions))
   #should check whether names, scores, strands and other metadata
   #are present and add them to the data frame
   write.table(tab, file=filename, sep="\t", quote=F, row.names=F, col.names=F)
+}
+
+# write a GR object into a bed file and all meta data as additional columns
+GR2bed <- function( regions, filename, ... ) {
+	require(GenomicRanges)
+
+	strnd = as.character(strand(regions))
+	strnd[strnd == "*"] = "."
+	
+	tab = data.frame(as.character(seqnames(regions)), as.numeric(start(regions)), as.numeric(end(regions)), as.data.frame(elementMetadata(regions), sep="\t"), stringsAsFactors=F)
+	#colnames(tab) = c("chr", "start", "end", names(elementMetadata(regions)))
+
+	write.table(tab, file=filename, sep="\t", quote=F, row.names=F, col.names=F, ...)
 }
 
 bed2GR <- function(filename, nfields=6, skip=0) {
@@ -204,6 +219,7 @@ countBamInGRanges <- function(bam.file, granges, min.mapq=NULL, read.width=1) {
   seq.names.in.bam <- names(scanBamHeader(bam.file)[[1]]$targets)
   for (seq.name in seq.names) {
     if (seq.name %in% seq.names.in.bam) {
+			print( paste("[", Sys.time(),"] Started processing count on chromosome", seq.name, "of file", bam.file) )
       granges.subset <- granges[seqnames(granges)==seq.name]
       strand(granges.subset) <- "*"
       rds <- scanBam(bam.file,param=ScanBamParam(what=c("pos","mapq"),which=range(granges.subset)))
@@ -222,6 +238,7 @@ countBamInGRanges <- function(bam.file, granges, min.mapq=NULL, read.width=1) {
     } else {
       rds.counts[as.logical(seqnames(granges)==seq.name)] <- 0
     }
+		print( paste("[", Sys.time(),"] Finished processing count on chromosome", seq.name, "of file", bam.file) )
   }
   rds.counts
 }
@@ -289,6 +306,7 @@ coverageBamInGRanges <- function(bam.file, granges, min.mapq, reads.collapsed=FA
   grange.coverage = matrix(0, nrow=length(granges), ncol=w)
   for (seq.name in seq.names) {
     if (seq.name %in% seq.names.in.bam) {
+			print( paste("[", Sys.time(),"] Started processing coverage on chromosome", seq.name, "of file", bam.file) )
       granges.subset <- granges[seqnames(granges)==seq.name]
       strand(granges.subset) <- "*"
       what = c("pos", "mapq", "qwidth")
@@ -323,6 +341,7 @@ coverageBamInGRanges <- function(bam.file, granges, min.mapq, reads.collapsed=FA
         cvg = t(sapply(v, as.numeric))
         grange.coverage[as.logical(seqnames(granges)==seq.name),] <- cvg
       }
+			print( paste("[", Sys.time(),"] Finished processing coverage on chromosome", seq.name, "of file", bam.file) )
     }
   }
   # reverse the ones on the minus strand
