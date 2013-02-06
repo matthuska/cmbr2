@@ -1,0 +1,87 @@
+#! /usr/bin/env Rscript
+
+#--------------------------------------------------------------
+# An apt-get-like CLI interface for dealing with R packages
+#--------------------------------------------------------------
+
+home_dir <- Sys.getenv("HOME")
+r_version <- paste(R.version$major, strsplit(R.version$minor, '.', fixed=TRUE)[[1]][[1]], sep=".")
+mylib <- file.path(home_dir, "R/x86_64-pc-linux-gnu-library/", r_version)
+max.cpus <- 1
+
+help <- "
+Usage: r-get <command> [args]
+
+Commands:
+  search - look for a package that matches a given string
+  install - install one or more packages
+  upgrade - upgrade all packages
+  recompile - recompile all packages (useful for doing major version upgrades eg. 2.8.x -> 2.9.x)
+
+Args:
+  for search - a Perl-style regular expression
+  install - one or more packages to install
+"
+
+argv <- commandArgs(TRUE)
+
+if (length(argv) == 0 || argv[1] %in% c("help", "--help", "-help", "-h")) {
+	cat(help)
+	q(save="no")
+}
+
+# Try to detect the number of CPUs available and use them in parallel when
+# making multiple packages
+if (require(parallel, quietly=TRUE)) {
+	detected_cpus <- detectCores()
+	if (!is.na(detected_cpus)) {
+		max.cpus <- detected_cpus
+	}
+}
+
+# biocLite can be used to install all package types (bioconductor, CRAN, etc.),
+# use it for everything.
+source("http://bioconductor.org/biocLite.R")
+
+# When interactive, use:
+# chooseBioCmirror()
+options(repos = biocinstallRepos())
+
+if (argv[1] == "search") {
+	all.packages <- available.packages()
+	matches <- all.packages[grep(argv[-1], all.packages[,"Package"], perl=TRUE),]
+	if (nrow(matches) > 0) {
+		# Possible columns:
+		#  Package Version  Priority Bundle Contains Depends Imports Suggests OS_type Repository
+		#  Note: Package name is displayed automatically, don't need to print it.
+		cols <- c("Version", "Depends")
+		print(matches[,cols])
+	} else {
+		cat(paste("No matches found for query: ", argv[-1], "\n"))
+	}
+} else if (argv[1] == "install") {
+	biocLite(argv[-1], lib.loc=mylib, lib=mylib, Ncpus=max.cpus)
+} else if (argv[1] == "upgrade") {
+	if (length(argv) <= 2) {
+		cat("Upgrading all packages\n")
+		# Leave out lib.loc to upgrade all library locations
+		#update.packages(ask=FALSE, instlib=mylib, checkBuilt=TRUE)
+		update.packages(lib.loc=mylib, ask=FALSE, instlib=mylib, checkBuilt=TRUE, Ncpus=max.cpus)
+		#update.packages(ask=FALSE, instlib=mylib)
+	}
+} else if (argv[1] == "recompile") {
+	# Sometimes useful after a major update (e.g. 2.15.x -> 2.16.x). Leave
+	# argument blank to recompile everything. This isn't very well tested
+	# since I've only used it once or twice.
+	if (length(argv) >= 2) {
+		pkgs <- argv[-1]
+	} else {
+		pkgs <- rownames(installed.packages())
+	}
+	biocLite(pkgs)
+} else {
+	cat(paste("Command not recognized:", argv[1]))
+	cat(help)
+	q(save="no")
+}
+
