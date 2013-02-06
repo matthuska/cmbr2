@@ -111,7 +111,7 @@ isProperBEDLine <- function(bedline) {
 		if (!any(is.na(as.integer(lineArgs[2:3])))){
 			if (length(lineArgs)>=5){
 				if (!is.na(as.numeric(lineArgs[5]))){
-					if (all(length(lineArgs)>=6, !any(lineArgs[6]=="+", lineArgs[6]=="-",lineArgs[6]=="*"))){
+					if (all(length(lineArgs)>=6, !(lineArgs[6] %in% c("+", "-","*",".")))){
 						return (-1)
 					}
 					else{
