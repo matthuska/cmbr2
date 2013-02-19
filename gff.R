@@ -278,15 +278,24 @@ countBamInGRangesFast <- function(bam.file, granges) {
   require(GenomicRanges)
   require(Rsamtools)
 
+	print( paste("[", Sys.time(),"] Started reading counts for GenomicRanges in", bam.file))
   rds.counts <- numeric(length(granges))
   seq.names <- as.character(unique(seqnames(granges)))
   seq.names.in.bam <- names(scanBamHeader(bam.file)[[1]]$targets)
   fields <- c("pos")
   strand(granges) <- "*"
 
-	# helmuth 2013-02-19 Is the ordering of this count matrix the same as in the granges object? (see ?scanBam or ?countBam)
   cnts <- countBam(bam.file,param=ScanBamParam(what=fields,which=granges))
-  cnts$records
+
+	print( paste("[", Sys.time(),"] Finished reading counts for GenomicRanges in", bam.file))
+
+	# order the coverage matrix in the same way as the granges argument (helmuth 2013-02-19)
+	mcols(granges)["OriginalOrder"]  <- 1:length(granges)
+	cntVals <- unlist(split(mcols(granges)["OriginalOrder"], seqnames(granges)))
+	cnts  <- cnts[order(cntVals[,1]), ]
+	print(paste("[", Sys.time(),"] Reordering count vector to order in supplied GenomicRanges..."))
+
+  invisible(cnts$records)
 }
 
 getBins <- function(chr=NULL, n=NULL, bin.size=NULL, genome=Rnorvegicus, offset=0) {
@@ -322,7 +331,7 @@ coverageBamInGRanges <- function(bam.file, granges, min.mapq, reads.collapsed=FA
   require(Rsamtools)
 
 	# helmuth 2013-02-19 This method gives awkward counts somehow (multiplies of the true coverage for some regions)
-	warning("Coverage output of this function not reproducible. Bug in ordering or estimating counts? (helmuth 2013-02-19)")
+	warning("Coverage output of this function not reproducible. Bug in ordering or estimating counts? It's suggested to use coverageBamInGRangesFast instead. (helmuth 2013-02-19)")
 
   # first check that all granges have the same width
   w = width(granges[1])
@@ -411,14 +420,12 @@ coverageBamInGRangesFast <- function(bam.file, granges, frag.width=NULL) {
   require(GenomicRanges, quietly=TRUE)
   require(Rsamtools, quietly=TRUE)
 
-	# helmuth 2013-02-19 Ordering of the coverage matrix is only correct if granges argument was sorted in advance
-	warning("Ordering of the coverage matrix is only correct if granges argument was sorted in advance - Needs to be fixed (helmuth 2013-02-19)")
-
-
   # first check that all granges have the same width
   w <- width(granges[1])
   stopifnot(all(width(granges) == w))
+
   what <- c("pos", "mapq", "qwidth")
+	print( paste("[", Sys.time(),"] Started reading coverage for GenomicRanges in", bam.file))
   if (is.null(frag.width)) {
     rds <- scanBam(bam.file, param=ScanBamParam(what=what, which=granges))
   } else {
@@ -444,10 +451,18 @@ coverageBamInGRangesFast <- function(bam.file, granges, frag.width=NULL) {
   grange.coverage <- do.call(rbind, start_sums) - do.call(rbind, end_sums)
 
   # reverse the ones on the minus strand
+	print( paste("[", Sys.time(),"] Reversing coverage for ranges on minus strand"))
   minus <- as.logical(strand(granges) == "-")
   if (any(minus)) {
     grange.coverage[minus,] <- t(apply(grange.coverage[minus,], 1, rev))
   }
+	print( paste("[", Sys.time(),"] Finished reading coverage for GenomicRanges in", bam.file))
+
+	# order the coverage matrix in the same way as the granges argument (helmuth 2013-02-19)
+	mcols(granges)["OriginalOrder"]  <- 1:length(granges)
+	cntVals <- unlist(split(mcols(granges)["OriginalOrder"], seqnames(granges)))
+	grange.coverage  <- grange.coverage[order(cntVals[,1]),]
+	print(paste("[", Sys.time(),"] Reordering coverage matrix rows to order in supplied GenomicRanges..."))
 
   invisible(grange.coverage)
 }
