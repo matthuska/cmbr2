@@ -283,6 +283,8 @@ countBamInGRangesFast <- function(bam.file, granges) {
   seq.names.in.bam <- names(scanBamHeader(bam.file)[[1]]$targets)
   fields <- c("pos")
   strand(granges) <- "*"
+
+	# helmuth 2013-02-19 Is the ordering of this count matrix the same as in the granges object? (see ?scanBam or ?countBam)
   cnts <- countBam(bam.file,param=ScanBamParam(what=fields,which=granges))
   cnts$records
 }
@@ -318,6 +320,9 @@ getBins <- function(chr=NULL, n=NULL, bin.size=NULL, genome=Rnorvegicus, offset=
 coverageBamInGRanges <- function(bam.file, granges, min.mapq, reads.collapsed=FALSE, width=NULL) {
   require(GenomicRanges)
   require(Rsamtools)
+
+	# helmuth 2013-02-19 This method gives awkward counts somehow (multiplies of the true coverage for some regions)
+	warning("Coverage output of this function not reproducible. Bug in ordering or estimating counts? (helmuth 2013-02-19)")
 
   # first check that all granges have the same width
   w = width(granges[1])
@@ -405,6 +410,11 @@ coverageBamInGRanges <- function(bam.file, granges, min.mapq, reads.collapsed=FA
 coverageBamInGRangesFast <- function(bam.file, granges, frag.width=NULL) {
   require(GenomicRanges, quietly=TRUE)
   require(Rsamtools, quietly=TRUE)
+
+	# helmuth 2013-02-19 Ordering of the coverage matrix is only correct if granges argument was sorted in advance
+	warning("Ordering of the coverage matrix is only correct if granges argument was sorted in advance - Needs to be fixed (helmuth 2013-02-19)")
+
+
   # first check that all granges have the same width
   w <- width(granges[1])
   stopifnot(all(width(granges) == w))
