@@ -278,7 +278,7 @@ countBamInGRangesFast <- function(bam.file, granges) {
   require(GenomicRanges)
   require(Rsamtools)
 
-	print( paste("[", Sys.time(),"] Started reading counts for GenomicRanges in", bam.file))
+	print( paste("[", Sys.time(),"] Started reading counts for GenomicRanges for", bam.file))
   rds.counts <- numeric(length(granges))
   seq.names <- as.character(unique(seqnames(granges)))
   seq.names.in.bam <- names(scanBamHeader(bam.file)[[1]]$targets)
@@ -287,13 +287,13 @@ countBamInGRangesFast <- function(bam.file, granges) {
 
   cnts <- countBam(bam.file,param=ScanBamParam(what=fields,which=granges))
 
-	print( paste("[", Sys.time(),"] Finished reading counts for GenomicRanges in", bam.file))
+	print( paste("[", Sys.time(),"] Finished reading counts for GenomicRanges for", bam.file))
 
 	# order the coverage matrix in the same way as the granges argument (helmuth 2013-02-19)
 	mcols(granges)["OriginalOrder"]  <- 1:length(granges)
 	cntVals <- unlist(split(mcols(granges)["OriginalOrder"], seqnames(granges)))
 	cnts  <- cnts[order(cntVals[,1]), ]
-	print(paste("[", Sys.time(),"] Reordering count vector to order in supplied GenomicRanges..."))
+	print(paste("[", Sys.time(),"] Reordering count vector to order in supplied GenomicRanges for", bam.file))
 
   invisible(cnts$records)
 }
@@ -425,7 +425,7 @@ coverageBamInGRangesFast <- function(bam.file, granges, frag.width=NULL) {
   stopifnot(all(width(granges) == w))
 
   what <- c("pos", "mapq", "qwidth")
-	print( paste("[", Sys.time(),"] Started reading coverage for GenomicRanges in", bam.file))
+	print( paste("[", Sys.time(),"] Started reading coverage for GenomicRanges for", bam.file))
   if (is.null(frag.width)) {
     rds <- scanBam(bam.file, param=ScanBamParam(what=what, which=granges))
   } else {
@@ -450,19 +450,20 @@ coverageBamInGRangesFast <- function(bam.file, granges, frag.width=NULL) {
   end_sums <- lapply(end_counts, cumsum)
   grange.coverage <- do.call(rbind, start_sums) - do.call(rbind, end_sums)
 
-  # reverse the ones on the minus strand
-	print( paste("[", Sys.time(),"] Reversing coverage for ranges on minus strand"))
-  minus <- as.logical(strand(granges) == "-")
-  if (any(minus)) {
-    grange.coverage[minus,] <- t(apply(grange.coverage[minus,], 1, rev))
-  }
-	print( paste("[", Sys.time(),"] Finished reading coverage for GenomicRanges in", bam.file))
+	print( paste("[", Sys.time(),"] Finished reading coverage for GenomicRanges for", bam.file))
 
 	# order the coverage matrix in the same way as the granges argument (helmuth 2013-02-19)
 	mcols(granges)["OriginalOrder"]  <- 1:length(granges)
 	cntVals <- unlist(split(mcols(granges)["OriginalOrder"], seqnames(granges)))
 	grange.coverage  <- grange.coverage[order(cntVals[,1]),]
-	print(paste("[", Sys.time(),"] Reordering coverage matrix rows to order in supplied GenomicRanges..."))
+	print(paste("[", Sys.time(),"] Reordering coverage matrix rows to order in supplied GenomicRanges for", bam.file))
+
+  # reverse the ones on the minus strand
+	print( paste("[", Sys.time(),"] Reversing coverage for ranges on minus strand for", bam.file))
+  minus <- as.logical(strand(granges) == "-")
+  if (any(minus)) {
+    grange.coverage[minus,] <- t(apply(grange.coverage[minus,], 1, rev))
+  }
 
   invisible(grange.coverage)
 }
