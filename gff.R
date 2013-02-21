@@ -105,101 +105,108 @@ GR2gtf <- function(regions, filename, feature.type="experimental_feature", src="
   write.table(tab, file=filename, sep="\t", quote=F, row.names=F, col.names=F, ...)
 }
 
-isProperBEDLine <- function(bedline) {
+parseProperBEDLine <- function(bedline) {
   lineArgs <- strsplit(bedline, "\t")[[1]]
+  argTypes <- lapply(lineArgs, function(arg) type.convert(arg, as.is=TRUE))
   if (length(lineArgs)>=3){
-    if (!any(is.na(as.integer(lineArgs[2:3])))){
+    if (is.integer(argTypes[[2]])  &&  is.integer(argTypes[[3]])){
       if (length(lineArgs)>=5){
-        if (!is.na(as.numeric(lineArgs[5]))){
+        if (is.numeric(argTypes[[5]])){
           if (all(length(lineArgs)>=6, !(lineArgs[6] %in% c("+", "-","*",".")))){
-            return (-1)
+            return (NA)
           }
           else{
-            return (length(lineArgs))
+            return(argTypes)
           }
         }
         else{
-          return (-1)
+          return (NA)
         }
       }
       else {
-        return (length(lineArgs))
+        return(argTypes)
       }
     }
   }
-  return (-1)
+  return (NA)
 }
 
-bed2GR2 <- function(filename) {
+bed2GR2 <- function(filename, parseMetadata=TRUE) {
   #tries to guess the right number of columns and header lines to be skipped
   #should adapt the function bed2GR so that it can parse the metaData
   nLines <- 10
   firstLines <- scan(filename, what=character(), nlines = nLines, sep="\n")
-  nFields <- -1
+  what <- NA
   lIndex <- 0
-  while (all(nFields==-1,lIndex < nLines) ){
+  while (all(is.na(what),lIndex < nLines) ){
     lIndex <- lIndex + 1
-    nFields <- isProperBEDLine(firstLines[lIndex])
+    what <- parseProperBEDLine(firstLines[lIndex])
   }
 
   if (lIndex >= nLines){
     stop("unable to find a proper bed line in the file")
   }
-
-  bed2GR(filename, nfields=nFields, skip=lIndex-1)
+  
+  if (!parseMetadata) what <- what[1:min(length(what), 6)]
+  #todo: try to parse possible headers to get the column names right
+  if (length(what)>6) names(what)[7:length(what)] <- paste("metadata",1:(length(what)-6), sep="_")
+  bed2GR(filename, what=what, skip=lIndex-1)
 
 }
 
-#Contrary to GR2bed, it attempts to print only the first 6 fields, if present
-GR2bed2 <- function(regions, filename) {
+# write a GR object into a bed file and all meta data as additional columns
+GR2bed <- function(regions, filename, header=FALSE, writeMetadata=TRUE) {
   require(GenomicRanges)
-
-  tab = data.frame(as.character(seqnames(regions)), start(regions), end(regions))
-  fieldNum = 3
+  tab = data.frame(chrom=as.character(seqnames(regions)), start=start(regions)-1, end=end(regions))
   
-  if (!is.null(names(regions))) fieldNum = 4
-  if (!is.null(score(regions))) fieldNum = 5
-  if ((!is.null(strand(regions))) && any(strand(regions)!="*")) fieldNum = 6
+  fieldNum = 3
+  extraColNames <- names(elementMetadata(regions))[!names(elementMetadata(regions))%in%c("name","score")]
+  if (length(extraColNames)>0 && writeMetadata) fieldNum = 7 #in this case the number of fields can be also above 7, not necessarily 7
+  else if ((!is.null(strand(regions))) && any(strand(regions)!="*")) fieldNum = 6
+  else if (!is.null(score(regions))) fieldNum = 5
+  else if (!is.null(names(regions))) fieldNum = 4
+  
+  
+  
   
   if (fieldNum > 3){
-    if (!is.null(names(regions))) tab <- cbind(tab, names(regions))
-    else tab <- cbind(tab, rep("*", length(regions)))
+    if (!is.null(names(regions))) tab$name=names(regions)
+    else tab$name=rep("*", length(regions))
   
     if (fieldNum > 4){
-      if (!is.null(score(regions))) tab <- cbind(tab, score(regions))
-      else tab <- cbind(tab, rep("*", length(regions)))
+      if (!is.null(score(regions))) tab$score=score(regions)
+      else tab$score=rep("*", length(regions))
     
       if (fieldNum > 5){
         strnd <- rep("*", length(strand(regions)))
         strnd[as.logical(strand(regions)=="+")] <- "+"
         strnd[as.logical(strand(regions)=="-")] <- "-"
-        tab <- cbind(tab, strnd)
+        tab$strand=strnd
+      }
+      
+      if (fieldNum > 6){
+        tab <- data.frame(tab, as(elementMetadata(regions)[extraColNames], "data.frame"))
       }
     }
   }
   
-  write.table(tab, file=filename, sep="\t", quote=F, row.names=F, col.names=F)
+  cnames <- F
+  if (header) {cnames <- names(tab); cnames[1] <- paste("#", cnames[1], sep="")}
+  write.table(tab, file=filename, sep="\t", quote=F, row.names=F, col.names=cnames)
 }
 
-# write a GR object into a bed file and all meta data as additional columns
-GR2bed <- function( regions, filename, ... ) {
-  require(GenomicRanges)
 
-  strnd = as.character(strand(regions))
-  strnd[strnd == "*"] = "."
-  
-  tab = data.frame(as.character(seqnames(regions)), as.numeric(start(regions)), as.numeric(end(regions)), as.data.frame(elementMetadata(regions), sep="\t"), stringsAsFactors=F)
-  #colnames(tab) = c("chr", "start", "end", names(elementMetadata(regions)))
-
-  write.table(tab, file=filename, sep="\t", quote=F, row.names=F, col.names=F, ...)
-}
-
-bed2GR <- function(filename, nfields=6, skip=0) {
+bed2GR <- function(filename, nfields=6, skip=0, what=NA) {
   stopifnot(nfields >= 3)
   # read BED into genomic ranges
   require(GenomicRanges)
-  what = list(character(), numeric(), numeric(), character(), numeric(), character())
-  what = what[1:nfields]
+  if (!is.list(what) && is.na(what)){
+    what = list(character(), numeric(), numeric(), character(), numeric(), character())[1:nfields]
+  }
+  else {
+    nfields = length(what)
+  }
+  
   regions = scan(filename, what=what, sep="\t", skip=skip)
 
   if (nfields >= 6) {
@@ -209,19 +216,25 @@ bed2GR <- function(filename, nfields=6, skip=0) {
     strand = "*"
   }
 
-  # Subtract 1 from "end" because intervals in BED files are half open (end is
-  # not included in the range), whereas GRanges objects expect closed intervals.
+  
+  # GRanges are 1-indexed and closed, while BED intervals are 0-indexed and half-open
   gr = GRanges(seqnames=regions[[1]],
-    ranges=IRanges(start=regions[[2]], end=regions[[3]] - 1), strand=strand)
+  ranges=IRanges(start=regions[[2]]+1, end=regions[[3]]), strand=strand)
+  
 
-  if (nfields >= 4) {
+  if (nfields >= 4 && any(regions[[4]]!="*")) {
     names(gr) = regions[[4]]
-    elementMetadata(gr) = DataFrame(name=regions[[4]])
   }
-  if (nfields >= 5) {
-    elementMetadata(gr) = DataFrame(elementMetadata(gr), score=regions[[5]])
+  
+  if (nfields > 6) {
+    elementMetadata(gr) = DataFrame(score=regions[[5]], regions[7:length(regions)])
   }
-
+  else if (nfields >= 5) {
+    elementMetadata(gr) = DataFrame(score=regions[[5]])
+  }
+  
+  
+  
   return(gr)
 }
 
