@@ -131,7 +131,7 @@ parseProperBEDLine <- function(bedline) {
   return (NA)
 }
 
-bed2GR2 <- function(filename, parseMetadata=TRUE) {
+bed2GR2 <- function(filename, parseMetadata=TRUE, ...) {
   #tries to guess the right number of columns and header lines to be skipped
   #should adapt the function bed2GR so that it can parse the metaData
   nLines <- 10
@@ -150,7 +150,7 @@ bed2GR2 <- function(filename, parseMetadata=TRUE) {
   if (!parseMetadata) what <- what[1:min(length(what), 6)]
   #todo: try to parse possible headers to get the column names right
   if (length(what)>6) names(what)[7:length(what)] <- paste("metadata",1:(length(what)-6), sep="_")
-  bed2GR(filename, what=what, skip=lIndex-1)
+  bed2GR(filename, what=what, skip=lIndex-1, ...)
 
 }
 
