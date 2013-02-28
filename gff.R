@@ -146,7 +146,7 @@ bed2GR2 <- function(filename, parseMetadata=TRUE) {
   if (lIndex >= nLines){
     stop("unable to find a proper bed line in the file")
   }
-  
+
   if (!parseMetadata) what <- what[1:min(length(what), 6)]
   #todo: try to parse possible headers to get the column names right
   if (length(what)>6) names(what)[7:length(what)] <- paste("metadata",1:(length(what)-6), sep="_")
@@ -158,56 +158,75 @@ bed2GR2 <- function(filename, parseMetadata=TRUE) {
 GR2bed <- function(regions, filename, header=FALSE, writeMetadata=TRUE) {
   require(GenomicRanges)
   tab = data.frame(chrom=as.character(seqnames(regions)), start=start(regions)-1, end=end(regions))
-  
+
   fieldNum = 3
   extraColNames <- names(elementMetadata(regions))[!names(elementMetadata(regions))%in%c("name","score")]
   if (length(extraColNames)>0 && writeMetadata) fieldNum = 7 #in this case the number of fields can be also above 7, not necessarily 7
   else if ((!is.null(strand(regions))) && any(strand(regions)!="*")) fieldNum = 6
   else if (!is.null(score(regions))) fieldNum = 5
   else if (!is.null(names(regions))) fieldNum = 4
-  
-  
-  
-  
+
+
+
+
   if (fieldNum > 3){
     if (!is.null(names(regions))) tab$name=names(regions)
     else tab$name=rep("*", length(regions))
-  
+
     if (fieldNum > 4){
       if (!is.null(score(regions))) tab$score=score(regions)
       else tab$score=rep("*", length(regions))
-    
+
       if (fieldNum > 5){
         strnd <- rep("*", length(strand(regions)))
         strnd[as.logical(strand(regions)=="+")] <- "+"
         strnd[as.logical(strand(regions)=="-")] <- "-"
         tab$strand=strnd
       }
-      
+
       if (fieldNum > 6){
         tab <- data.frame(tab, as(elementMetadata(regions)[extraColNames], "data.frame"))
       }
     }
   }
-  
+
   cnames <- F
   if (header) {cnames <- names(tab); cnames[1] <- paste("#", cnames[1], sep="")}
   write.table(tab, file=filename, sep="\t", quote=F, row.names=F, col.names=cnames)
 }
 
-
-bed2GR <- function(filename, nfields=6, skip=0, what=NA) {
+##' Parse a .bed file into a GRanges object
+##'
+##' Bed format details:
+##' http://genome.ucsc.edu/FAQ/FAQformat.html#format1
+##'
+##' @param filename the full path to the bed file being parsed
+##' @param nfields the number of fields/columns in the bed file
+##' @param skip the number of lines to skip at the beginning of the
+##' bed file
+##' @param what a list of data types to be passed to scan() that
+##' indicates the data type of each column in the bed file. Specifying
+##' this argument will override the nfields argument.
+##' @param genome (optional) a character string indicating the genome
+##' from which the GRanges are taken from, e.g. "mm9" or "hg19". Used
+##' to set the lengths of each chromosome. The lengths will not be set
+##' if the appropriate BSgenome package has not been installed.
+##' @return a GRanges object
+##' @author Matthew Huska, Johannes Helmuth, Alessandro Mammana and
+##' Matthias Heinig
+bed2GR <- function(filename, nfields=6, skip=0, what=NA, genome) {
   stopifnot(nfields >= 3)
-  # read BED into genomic ranges
+
   require(GenomicRanges)
-  if (!is.list(what) && is.na(what)){
+
+  # If the user hasn't specified the exact fields to parse, then grab
+  # the first "nfields" columns and assume the data types are the ones
+  # in the BED spec
+  if (!is.list(what)) {
     what = list(character(), numeric(), numeric(), character(), numeric(), character())[1:nfields]
   }
-  else {
-    nfields = length(what)
-  }
-  
-  regions = scan(filename, what=what, sep="\t", skip=skip)
+
+  regions = scan(filename, what=what, sep="\t", skip=skip, flush=TRUE)
 
   if (nfields >= 6) {
     strand = regions[[6]]
@@ -216,25 +235,39 @@ bed2GR <- function(filename, nfields=6, skip=0, what=NA) {
     strand = "*"
   }
 
-  
   # GRanges are 1-indexed and closed, while BED intervals are 0-indexed and half-open
   gr = GRanges(seqnames=regions[[1]],
-  ranges=IRanges(start=regions[[2]]+1, end=regions[[3]]), strand=strand)
-  
+    ranges=IRanges(start=regions[[2]]+1, end=regions[[3]]), strand=strand)
+
+  # If the genome has been specified, try to look up chromosome
+  # lengths using the BSGenome packages and set these lengths in the
+  # GRanges object (is there an easier way to do this?)
+  if (!missing(genome)) {
+    if (!require(BSgenome)) {
+      warning("To use the 'genome' argument you need to have the 'BSgenome' package installed. Leaving chromosome lengths unspecified.")
+    } else {
+      installed = installed.genomes(splitNameParts = TRUE)
+      if (!(genome %in% installed$provider_version)) {
+        warning(paste("The 'BSgnome' package for", genome, "is not installed. Leaving chromosome lengths unspecified."))
+      } else {
+        pkgname <- installed$pkgname[installed$provider_version == genome]
+        if (require(pkgname, character.only=TRUE)) {
+          seqlengths(gr) <- seqlengths(eval(as.name(pkgname)))[names(seqlengths(gr))]
+        }
+      }
+    }
+  }
 
   if (nfields >= 4 && any(regions[[4]]!="*")) {
     names(gr) = regions[[4]]
   }
-  
+
   if (nfields > 6) {
     elementMetadata(gr) = DataFrame(score=regions[[5]], regions[7:length(regions)])
-  }
-  else if (nfields >= 5) {
+  } else if (nfields >= 5) {
     elementMetadata(gr) = DataFrame(score=regions[[5]])
   }
-  
-  
-  
+
   return(gr)
 }
 
@@ -291,7 +324,7 @@ countBamInGRangesFast <- function(bam.file, granges) {
   require(GenomicRanges)
   require(Rsamtools)
 
-	print( paste("[", Sys.time(),"] Started reading counts for GenomicRanges for", bam.file))
+  print( paste("[", Sys.time(),"] Started reading counts for GenomicRanges for", bam.file))
   rds.counts <- numeric(length(granges))
   seq.names <- as.character(unique(seqnames(granges)))
   seq.names.in.bam <- names(scanBamHeader(bam.file)[[1]]$targets)
@@ -300,13 +333,13 @@ countBamInGRangesFast <- function(bam.file, granges) {
 
   cnts <- countBam(bam.file,param=ScanBamParam(what=fields,which=granges))
 
-	print( paste("[", Sys.time(),"] Finished reading counts for GenomicRanges for", bam.file))
+  print( paste("[", Sys.time(),"] Finished reading counts for GenomicRanges for", bam.file))
 
-	# order the coverage matrix in the same way as the granges argument (helmuth 2013-02-19)
-	mcols(granges)["OriginalOrder"]  <- 1:length(granges)
-	cntVals <- unlist(split(mcols(granges)["OriginalOrder"], seqnames(granges)))
-	cnts  <- cnts[order(cntVals[,1]), ]
-	print(paste("[", Sys.time(),"] Reordering count vector to order in supplied GenomicRanges for", bam.file))
+  # order the coverage matrix in the same way as the granges argument (helmuth 2013-02-19)
+  mcols(granges)["OriginalOrder"]  <- 1:length(granges)
+  cntVals <- unlist(split(mcols(granges)["OriginalOrder"], seqnames(granges)))
+  cnts  <- cnts[order(cntVals[,1]), ]
+  print(paste("[", Sys.time(),"] Reordering count vector to order in supplied GenomicRanges for", bam.file))
 
   invisible(cnts$records)
 }
@@ -343,8 +376,8 @@ coverageBamInGRanges <- function(bam.file, granges, min.mapq, reads.collapsed=FA
   require(GenomicRanges)
   require(Rsamtools)
 
-	# helmuth 2013-02-19 This method gives awkward counts somehow (multiplies of the true coverage for some regions)
-	warning("Coverage output of this function not reproducible. Bug in ordering or estimating counts? It's suggested to use coverageBamInGRangesFast instead. (helmuth 2013-02-19)")
+  # helmuth 2013-02-19 This method gives awkward counts somehow (multiplies of the true coverage for some regions)
+  warning("Coverage output of this function not reproducible. Bug in ordering or estimating counts? It's suggested to use coverageBamInGRangesFast instead. (helmuth 2013-02-19)")
 
   # first check that all granges have the same width
   w = width(granges[1])
@@ -428,7 +461,7 @@ coverageBamInGRanges <- function(bam.file, granges, min.mapq, reads.collapsed=FA
 ##' @return a length(granges) x width(granges) dimension matrix where each row
 ##' is a grange and each column is a base pair relative to the start of the
 ##' GRange.
-##' @author Matthew Huska
+##' @author Matthew Huska, Johannes Helmuth
 coverageBamInGRangesFast <- function(bam.file, granges, frag.width=NULL) {
   require(GenomicRanges, quietly=TRUE)
   require(Rsamtools, quietly=TRUE)
@@ -438,7 +471,7 @@ coverageBamInGRangesFast <- function(bam.file, granges, frag.width=NULL) {
   stopifnot(all(width(granges) == w))
 
   what <- c("pos", "mapq", "qwidth")
-	print( paste("[", Sys.time(),"] Started reading coverage for GenomicRanges for", bam.file))
+  print( paste("[", Sys.time(),"] Started reading coverage for GenomicRanges for", bam.file))
   if (is.null(frag.width)) {
     rds <- scanBam(bam.file, param=ScanBamParam(what=what, which=granges))
   } else {
@@ -463,16 +496,16 @@ coverageBamInGRangesFast <- function(bam.file, granges, frag.width=NULL) {
   end_sums <- lapply(end_counts, cumsum)
   grange.coverage <- do.call(rbind, start_sums) - do.call(rbind, end_sums)
 
-	print( paste("[", Sys.time(),"] Finished reading coverage for GenomicRanges for", bam.file))
+  print( paste("[", Sys.time(),"] Finished reading coverage for GenomicRanges for", bam.file))
 
-	# order the coverage matrix in the same way as the granges argument (helmuth 2013-02-19)
-	mcols(granges)["OriginalOrder"]  <- 1:length(granges)
-	cntVals <- unlist(split(mcols(granges)["OriginalOrder"], seqnames(granges)))
-	grange.coverage  <- grange.coverage[order(cntVals[,1]),]
-	print(paste("[", Sys.time(),"] Reordering coverage matrix rows to order in supplied GenomicRanges for", bam.file))
+  # order the coverage matrix in the same way as the granges argument (helmuth 2013-02-19)
+  mcols(granges)["OriginalOrder"]  <- 1:length(granges)
+  cntVals <- unlist(split(mcols(granges)["OriginalOrder"], seqnames(granges)))
+  grange.coverage  <- grange.coverage[order(cntVals[,1]),]
+  print(paste("[", Sys.time(),"] Reordering coverage matrix rows to order in supplied GenomicRanges for", bam.file))
 
   # reverse the ones on the minus strand
-	print( paste("[", Sys.time(),"] Reversing coverage for ranges on minus strand for", bam.file))
+  print( paste("[", Sys.time(),"] Reversing coverage for ranges on minus strand for", bam.file))
   minus <- as.logical(strand(granges) == "-")
   if (any(minus)) {
     grange.coverage[minus,] <- t(apply(grange.coverage[minus,], 1, rev))
