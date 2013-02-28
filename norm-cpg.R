@@ -12,8 +12,21 @@ norm_cpg <- function(seqs) {
     return(ncpg)
 }
 
-# From Matthias. Calculates some stats about CpG frequencies given a GR object
-# specifying the regions and a BSgenome object specifying the genome
+#  From Matthias. Calculates some stats about CpG frequencies given a GR object
+#  specifying the regions and a BSgenome object specifying the genome
+#' Computes GC content and CpGodd for a given GRanges object
+#'
+#' As a threshold between HCP and LCP a CpG odd ratio of .4 is a good approximation.
+#'
+#' You can construct a 3kb-flanking-TSS representation for a given set of granges with:
+#'
+#'    require(BSgenome)
+#'    require(BSgenome.Hsapiens.UCSC.hg19)
+#'    require(GenomicFeatures)
+#'    granges.tss = flank(granges, 1500, start=T)
+#'    
+#'    computeCpGOddInGRanges( Hsapiens, granges, tss)
+#'
 cpg_GR <- function(genome, regions) {
   stopifnot(class(regions) == "GRanges")
   chrom = as.character(GenomicRanges::seqnames(regions))

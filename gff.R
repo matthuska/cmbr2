@@ -523,7 +523,7 @@ coverageBamInGRangesFast <- function(bam.file, granges, frag.width=NULL) {
 # TODO: Maybe it is better to use countBamInGRanges for this purpose to count for bins
 #
 # Returns a list of data.frames with window counts for each grange
-coverageBamInGRangesWindows  <- function( bam.file, granges, window.width=300, sliding.window=F, FUN=coverageBamInGRanges, ...) {
+coverageBamInGRangesWindows  <- function( bam.file, granges, window.width=300, sliding.window=F, FUN=coverageBamInGRangesFast, ...) {
   require( GenomicRanges )
 
   coverage = FUN( bam.file=bam.file, granges=granges, ... )
