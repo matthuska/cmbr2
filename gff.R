@@ -482,7 +482,9 @@ coverageBamInGRangesFast <- function(bam.file, granges, frag.width=NULL) {
   }
   read_pos <- lapply(rds, "[[", "pos")
   # Position of the read relative to the start of the grange
-  relative_pos <- mapply("-", read_pos, start(granges) - 1)
+  #relative_pos <- mapply("-", read_pos, start(granges) - 1) #helmuth 2013-03-08: start(granges) gives starting coordinates in wrong order
+	region_start <- as.numeric(do.call("rbind", strsplit(names(rds), ':|-'))[,2])
+  relative_pos <- mapply("-", read_pos, starts - 1)
   starts <- lapply(relative_pos, function(s) { s[s < 1] <- 1; s[s > w] <- w; s })
   if (is.null(frag.width)) {
     widths <- lapply(rds, "[[", "qwidth")
