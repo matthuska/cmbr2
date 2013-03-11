@@ -567,3 +567,37 @@ processListOfBamsInGRanges  <- function( bam.files, granges=granges, mc.cores=NA
 
   return (counts)
 }
+
+#' Computes the maximum convolution / edge difference in a coverage file
+#'
+#' @param bamfile
+#' @param regions The GenomicRanges object for which maximum convolution should be computed. This object already gives the region for the convolution computation (e.g. 200 bp in width)
+#' @param bin.size Size of bin to sum up mapping reads.
+#' @param mc.cores Number of cores to use on a multicore system
+#'
+#' @value a list of maximum convolution score per region
+#' 
+#' @author Johannes Helmuth i<helmuth@molgen.mpg.de>
+#' @date  2013-03-11
+#'
+getConvolution <- function(bamfile, regions, bin.size=50, mc.cores=4) {
+	require( multicore )
+
+	co = coverageBamInGRangesFast( bamfile, regions )
+	print( paste("[", Sys.time(),"] Extract maximum convolution value for each promoter") )
+	peaks = mclapply( 1:dim(co)[1], function( j ) {
+				promoter = co[j,]
+				steps = sapply( 1:(length(promoter)-2*bin.size+1), function( i ) {
+										sum( promoter[(i+bin.size):(i+(2*bin.size-1))] ) - sum( promoter[i:(i+(bin.size)-1)] )
+								})
+				m = max( steps )
+				if ( m < 0 ) {
+					0
+				} else {
+					m
+				}
+			}, mc.cores=mc.cores)
+
+	return ( unlist( peaks ) )
+}
+
