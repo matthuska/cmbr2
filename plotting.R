@@ -30,7 +30,7 @@
 #' @author Johannes Helmuth <helmuth@molgen.mpg.de>
 #' @date  2013/03/07
 #' @export
-plotSignature <- function(coverage, groupings=NA, classes=NA, classes.color=NA, property=NA, ordering=NA, color=gray.colors(25), scale.=T, title=NA, barpl=T, markings=NULL) {
+plotSignature <- function(coverage, groupings=NA, grouping.order=NA, classes=NA, classes.color=NA, property=NA, property.lab="", ordering=NA, color=gray.colors(25), scale.=T, title=NA, barpl=T, markings=NULL) {
 
 	stopifnot(length(coverage) >= 1)
 
@@ -42,8 +42,10 @@ plotSignature <- function(coverage, groupings=NA, classes=NA, classes.color=NA, 
 	if (invalid(groupings)) {
 		groupings = as.factor(rep("", n))
 	} 
-	groups  = levels( groupings )				# group labels
-	g       = length( groups )				# number of groups
+	if (invalid(grouping.order)) {
+		grouping.order  = levels( groupings )				# group labels
+	}
+	g       = length( grouping.order )				# number of groups
 	if (! invalid(classes) && invalid(classes.color)) {
 		classes.color = rainbow(length(levels(classes)))
 		names(classes.color) = levels(classes)
@@ -69,16 +71,16 @@ plotSignature <- function(coverage, groupings=NA, classes=NA, classes.color=NA, 
 
 	# plotting layout
 	cols = k # signatures plus one column for colorcode
-	widths = c(rep(2, k), 1)
+	widths = c(rep(2, k), 3)
 	if (! invalid(classes) ) { cols = cols + 1; widths = c(.2, widths) }
-	if (barpl) { cols = cols + 1; widths = c(1, widths)	} 
+	if (barpl) { cols = cols + 1; widths = c(2, widths)	} 
 	plot.matrix = t(sapply( (0:(g-1))*cols, function( i ) { 
 										               c( (i+1):(i+cols) )
 							                   }))
 	plot.matrix = cbind( plot.matrix, rep( g * cols + 1, g) ) # rightmost column will be legend
 	heights = c( rep(0, g) )
-	for ( i in 1:length( groups )) {
-			heights[i] = length( which(groupings == groups[i]) ) / n
+	for ( i in 1:g) {
+			heights[i] = length( which(groupings == grouping.order[i]) ) / n
 	}
 	layout( plot.matrix, heights=heights, widths=widths) # width of columns can be specified here
 
@@ -86,19 +88,20 @@ plotSignature <- function(coverage, groupings=NA, classes=NA, classes.color=NA, 
 	par.config = par()
 	space = par.config$cex.main
 	first.row = T
-	for ( group in groups ) {
+	for ( group in grouping.order ) {
 
 		group.order = ordering[ which( groupings == group ) ]
 
 		if ( barpl ) {
 			if (first.row) {
-				par(mar=c(0, 5*space, 2*space,1))
+				par(mar=c(0, space, 2*space,1))
 			} else {
-				par(mar=c(0, 5*space, space, 1))
+				par(mar=c(0, space, space, 1))
 			}
-			barplot( property[ group.order ],  ylab=paste( length(group.order), group ), cex.lab=space, xlab="", horiz=T, xaxt="n", yaxt="n", yaxs="i", xlim=range(pretty(c(0, max( property )))))
+			barplot( property[ group.order ],  ylab=paste( length(group.order), group ), cex.lab=.6*space, xlab="", horiz=T, xaxt="n", yaxt="n", yaxs="i", xlim=range(pretty(c(0, max( property )))))
 			if ( first.row ) {
-				axis( 3 )
+				axis( 3, cex.axis=.3*space )
+				title( main=property.lab, cex.main=.4*space )
 			}
 		}
 
@@ -126,12 +129,12 @@ plotSignature <- function(coverage, groupings=NA, classes=NA, classes.color=NA, 
 				title( main=paste( k.names[ i ] ) )  
 			}
 			for (j in 1:length(markings)) {
-				abline(v=markings[j], lwd=2*space, lty=3, col=names(markings)[j])
+				abline(v=markings[j], lwd=space, lty=3, col=names(markings)[j])
 			}
 			if (first.row) {
 				par(mar=c(1, 1, 2*space, 0))
 			} else {
-				par(mar=c(1, 1, 1, 0))
+				par(mar=c(1, 1, space, 0))
 			}
 		}
 		
@@ -143,7 +146,7 @@ plotSignature <- function(coverage, groupings=NA, classes=NA, classes.color=NA, 
 	leg[1] = format(limits[1], digits=2)
 	leg[ length(color) / 2 ] = format(limits[2] / 2, digits=2)
 	leg[ length(color) ] = format(limits[2], digits=2)
-	par(mar=c(0,2*space,2*space,0))
+	par(mar=c(0,0,4*space,0))
 	plot(1, type = "n", axes=FALSE, xlab="", ylab="") #pseudoplot to draw legend
 	legend("top", legend=rev(leg), col=rev(color), lwd=space, border="white", bg="white", bty="o", y.i=.1, horiz=F, cex=space)
 
@@ -260,4 +263,22 @@ plotProfile <- function( coverage, classes=NA, color=NA, method="median", scale.
 
 }
 
+#' A smoothScatter that is drawn to the borders of the plot (no whitespace anymore)
+#'
+#' your highness <helmuth@molgen.mpg.de> 2013-03-14
+smoothScatter.2 <- function( x, y=NULL, colramp=colorRampPalette(c("white", blues9)), xlim=NULL, ylim=NULL, ... ) {
 
+	# create a dummy plot and color it with the color for lowest value
+	xy <- xy.coords(x, y)
+	if ( is.null(xlim) ) {
+		xlim = c( min(xy$x), max(xy$x))
+	} 
+	if ( is.null(ylim) ) {
+		ylim = c( min(xy$y),  max(xy$y))
+	}
+	plot(0,1, xlim=xlim, ylim=ylim, type="n", ...)
+	polygon( x=c( 2*xlim[1], 2*xlim[2], 2*xlim[2], 2*xlim[1]), y=c( 2*ylim[1], 2*ylim[1], 2*ylim[2], 2*ylim[2] ), col=colramp(256)[1])
+
+	# now add smoothscatter to this plot
+	smoothScatter(x=x,y=y, colramp=colramp, add=T, ...)
+}
