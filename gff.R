@@ -35,8 +35,6 @@ gff2GR <- function(filename, gffAttrNames=NULL) {
   return(gr)
 }
 
-
-
 GR2gff <- function(regions, filename, feature.type="experimental_feature", src="GenomicRanges", score=".", phase=".") {
   require(GenomicRanges)
 
@@ -195,25 +193,25 @@ GR2bed <- function(regions, filename, header=FALSE, writeMetadata=TRUE) {
   write.table(tab, file=filename, sep="\t", quote=F, row.names=F, col.names=cnames)
 }
 
-##' Parse a .bed file into a GRanges object
-##'
-##' Bed format details:
-##' http://genome.ucsc.edu/FAQ/FAQformat.html#format1
-##'
-##' @param filename the full path to the bed file being parsed
-##' @param nfields the number of fields/columns in the bed file
-##' @param skip the number of lines to skip at the beginning of the
-##' bed file
-##' @param what a list of data types to be passed to scan() that
-##' indicates the data type of each column in the bed file. Specifying
-##' this argument will override the nfields argument.
-##' @param genome (optional) a character string indicating the genome
-##' from which the GRanges are taken from, e.g. "mm9" or "hg19". Used
-##' to set the lengths of each chromosome. The lengths will not be set
-##' if the appropriate BSgenome package has not been installed.
-##' @return a GRanges object
-##' @author Matthew Huska, Johannes Helmuth, Alessandro Mammana and
-##' Matthias Heinig
+#' Parse a .bed file into a GRanges object
+#'
+#' Bed format details:
+#' http://genome.ucsc.edu/FAQ/FAQformat.html#format1
+#'
+#' @param filename the full path to the bed file being parsed
+#' @param nfields the number of fields/columns in the bed file
+#' @param skip the number of lines to skip at the beginning of the
+#' bed file
+#' @param what a list of data types to be passed to scan() that
+#' indicates the data type of each column in the bed file. Specifying
+#' this argument will override the nfields argument.
+#' @param genome (optional) a character string indicating the genome
+#' from which the GRanges are taken from, e.g. "mm9" or "hg19". Used
+#' to set the lengths of each chromosome. The lengths will not be set
+#' if the appropriate BSgenome package has not been installed.
+#' @return a GRanges object
+#' @author Matthew Huska, Johannes Helmuth, Alessandro Mammana and
+#' Matthias Heinig
 bed2GR <- function(filename, nfields=6, skip=0, what=NA, genome) {
   stopifnot(nfields >= 3)
 
@@ -320,11 +318,13 @@ countBamInGRanges <- function(bam.file, granges, min.mapq=NULL, read.width=1) {
 #
 # Also, we do not filter by mapping quality (min.mapq) or allow the modification
 # of the read width.
-countBamInGRangesFast <- function(bam.file, granges) {
+countBamInGRangesFast <- function(bam.file, granges, verbose=FALSE) {
   require(GenomicRanges)
   require(Rsamtools)
 
-  print( paste("[", Sys.time(),"] Started reading counts for GenomicRanges for", bam.file))
+  if (verbose)
+    cat("[", format(Sys.time()), "] Started reading counts for GenomicRanges for", bam.file, "\n")
+
   rds.counts <- numeric(length(granges))
   seq.names <- as.character(unique(seqnames(granges)))
   seq.names.in.bam <- names(scanBamHeader(bam.file)[[1]]$targets)
@@ -333,13 +333,16 @@ countBamInGRangesFast <- function(bam.file, granges) {
 
   cnts <- countBam(bam.file,param=ScanBamParam(what=fields,which=granges))
 
-  print( paste("[", Sys.time(),"] Finished reading counts for GenomicRanges for", bam.file))
+  if (verbose)
+    cat("[", format(Sys.time()), "] Finished reading counts for GenomicRanges for", bam.file)
 
   # order the coverage matrix in the same way as the granges argument (helmuth 2013-02-19)
   mcols(granges)["OriginalOrder"]  <- 1:length(granges)
   cntVals <- unlist(split(mcols(granges)["OriginalOrder"], seqnames(granges)))
   cnts  <- cnts[order(cntVals[,1]), ]
-  print(paste("[", Sys.time(),"] Reordering count vector to order in supplied GenomicRanges for", bam.file))
+
+  if (verbose)
+    cat("[", format(Sys.time()), "] Reordering count vector to order in supplied GenomicRanges for", bam.file)
 
   invisible(cnts$records)
 }
@@ -435,34 +438,34 @@ coverageBamInGRanges <- function(bam.file, granges, min.mapq, reads.collapsed=FA
   return(grange.coverage)
 }
 
-##' A fast(er) function to calculate coverage across a set of GRanges.
-##'
-##' An alternative version of the coverageBamInGRanges() function. Unlike that
-##' function you can not filter the reads by mapping quality or collapse reads
-##' (what does that even do?). Also unlike that function this one is pretty
-##' fast. Calculating coverage across 6 bam files for 33,000 ranges, each of
-##' which was 3kb in length took about 4.5 minutes with this function and
-##' approximately an hour with the old function.
-##'
-##' TODO: add an option to return positive and negative strand coverage
-##' separately.
-##'
-##' TODO: allow filtering by min.mapq
-##'
-##' TODO: consider the strand of the reads. Right now the start of the read is
-##' always the "left-most" or "lowest" position (as returned by scanBam)
-##'
-##' @param bam.file the full path to a bam file. It should have an associated
-##' index with the same name and .bai at the end.
-##' @param granges a GRanges object where all ranges have the same width
-##' @param frag.width an optional parameter to force the fragment width to
-##' something other than the read width contained in the bam file. By default
-##' the qwidth contained in the bam file is used.
-##' @return a length(granges) x width(granges) dimension matrix where each row
-##' is a grange and each column is a base pair relative to the start of the
-##' GRange.
-##' @author Matthew Huska, Johannes Helmuth
-coverageBamInGRangesFast <- function(bam.file, granges, frag.width=NULL) {
+#' A fast(er) function to calculate coverage across a set of GRanges.
+#'
+#' An alternative version of the coverageBamInGRanges() function. Unlike that
+#' function you can not filter the reads by mapping quality or collapse reads
+#' (what does that even do?). Also unlike that function this one is pretty
+#' fast. Calculating coverage across 6 bam files for 33,000 ranges, each of
+#' which was 3kb in length took about 4.5 minutes with this function and
+#' approximately an hour with the old function.
+#'
+#' TODO: add an option to return positive and negative strand coverage
+#' separately.
+#'
+#' TODO: allow filtering by min.mapq
+#'
+#' TODO: consider the strand of the reads. Right now the start of the read is
+#' always the "left-most" or "lowest" position (as returned by scanBam)
+#'
+#' @param bam.file the full path to a bam file. It should have an associated
+#' index with the same name and .bai at the end.
+#' @param granges a GRanges object where all ranges have the same width
+#' @param frag.width an optional parameter to force the fragment width to
+#' something other than the read width contained in the bam file. By default
+#' the qwidth contained in the bam file is used.
+#' @return a length(granges) x width(granges) dimension matrix where each row
+#' is a grange and each column is a base pair relative to the start of the
+#' GRange.
+#' @author Matthew Huska, Johannes Helmuth
+coverageBamInGRangesFast <- function(bam.file, granges, frag.width=NULL, verbose=FALSE) {
   require(GenomicRanges, quietly=TRUE)
   require(Rsamtools, quietly=TRUE)
 
@@ -471,7 +474,10 @@ coverageBamInGRangesFast <- function(bam.file, granges, frag.width=NULL) {
   stopifnot(all(width(granges) == w))
 
   what <- c("pos", "mapq", "qwidth")
-  print( paste("[", Sys.time(),"] Started reading coverage for GenomicRanges for", bam.file))
+
+  if (verbose)
+    cat("[", format(Sys.time()), "] Started reading coverage for GenomicRanges for", bam.file)
+
   if (is.null(frag.width)) {
     rds <- scanBam(bam.file, param=ScanBamParam(what=what, which=granges))
   } else {
@@ -480,10 +486,11 @@ coverageBamInGRangesFast <- function(bam.file, granges, frag.width=NULL) {
     # width (qwidth). This only matters when frag.width > qwidth.
     rds <- scanBam(bam.file, param=ScanBamParam(what=what, which=resize(granges, width(granges) + 2*frag.width, fix="center")))
   }
+
   read_pos <- lapply(rds, "[[", "pos")
   # Position of the read relative to the start of the grange
   #relative_pos <- mapply("-", read_pos, start(granges) - 1) #helmuth 2013-03-08: start(granges) gives starting coordinates in wrong order
-	region_start <- as.numeric(do.call("rbind", strsplit(names(rds), ':|-'))[,2])
+  region_start <- as.numeric(do.call("rbind", strsplit(names(rds), ':|-'))[,2])
   relative_pos <- mapply("-", read_pos, region_start - 1)
   starts <- lapply(relative_pos, function(s) { s[s < 1] <- 1; s[s > w] <- w; s })
   if (is.null(frag.width)) {
@@ -498,16 +505,21 @@ coverageBamInGRangesFast <- function(bam.file, granges, frag.width=NULL) {
   end_sums <- lapply(end_counts, cumsum)
   grange.coverage <- do.call(rbind, start_sums) - do.call(rbind, end_sums)
 
-  print( paste("[", Sys.time(),"] Finished reading coverage for GenomicRanges for", bam.file))
+  if (verbose)
+    cat("[", format(Sys.time()), "] Finished reading coverage for GenomicRanges for", bam.file)
 
   # order the coverage matrix in the same way as the granges argument (helmuth 2013-02-19)
   mcols(granges)["OriginalOrder"]  <- 1:length(granges)
   cntVals <- unlist(split(mcols(granges)["OriginalOrder"], seqnames(granges)))
   grange.coverage  <- grange.coverage[order(cntVals[,1]),]
-  print(paste("[", Sys.time(),"] Reordering coverage matrix rows to order in supplied GenomicRanges for", bam.file))
+
+  if (verbose)
+    cat("[", format(Sys.time()), "] Reordering coverage matrix rows to order in supplied GenomicRanges for", bam.file)
 
   # reverse the ones on the minus strand
-  print( paste("[", Sys.time(),"] Reversing coverage for ranges on minus strand for", bam.file))
+  if (verbose)
+    cat("[", format(Sys.time()), "] Reversing coverage for ranges on minus strand for", bam.file)
+
   minus <- as.logical(strand(granges) == "-")
   if (any(minus)) {
     grange.coverage[minus,] <- t(apply(grange.coverage[minus,], 1, rev))
@@ -576,28 +588,27 @@ processListOfBamsInGRanges  <- function( bam.files, granges=granges, mc.cores=NA
 #' @param mc.cores Number of cores to use on a multicore system
 #'
 #' @value a list of maximum convolution score per region
-#' 
+#'
 #' @author Johannes Helmuth i<helmuth@molgen.mpg.de>
 #' @date  2013-03-11
 #'
 getConvolution <- function(bamfile, regions, bin.size=50, mc.cores=4) {
-	require( multicore )
+  require( multicore )
 
-	co = coverageBamInGRangesFast( bamfile, regions )
-	print( paste("[", Sys.time(),"] Extract maximum convolution value for each promoter") )
-	peaks = mclapply( 1:dim(co)[1], function( j ) {
-				promoter = co[j,]
-				steps = sapply( 1:(length(promoter)-2*bin.size+1), function( i ) {
-										sum( promoter[(i+bin.size):(i+(2*bin.size-1))] ) - sum( promoter[i:(i+(bin.size)-1)] )
-								})
-				m = max( steps )
-				if ( m < 0 ) {
-					0
-				} else {
-					m
-				}
-			}, mc.cores=mc.cores)
+  co = coverageBamInGRangesFast( bamfile, regions )
+  print( paste("[", Sys.time(),"] Extract maximum convolution value for each promoter") )
+  peaks = mclapply( 1:dim(co)[1], function( j ) {
+    promoter = co[j,]
+    steps = sapply( 1:(length(promoter)-2*bin.size+1), function( i ) {
+      sum( promoter[(i+bin.size):(i+(2*bin.size-1))] ) - sum( promoter[i:(i+(bin.size)-1)] )
+    })
+    m = max( steps )
+    if ( m < 0 ) {
+      0
+    } else {
+      m
+    }
+  }, mc.cores=mc.cores)
 
-	return ( unlist( peaks ) )
+  return ( unlist( peaks ) )
 }
-
