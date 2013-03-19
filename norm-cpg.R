@@ -25,9 +25,9 @@ norm_cpg <- function(seqs) {
 #'    require(GenomicFeatures)
 #'    granges.tss = flank(granges, 1500, start=T)
 #'    
-#'    computeCpGOddInGRanges( Hsapiens, granges, tss)
+#'    computeCpGOddInGRanges( Hsapiens, granges.tss)
 #'
-cpg_GR <- function(genome, regions) {
+cpg_GR <- function(genome, regions, threshold=.5) {
   stopifnot(class(regions) == "GRanges")
   chrom = as.character(GenomicRanges::seqnames(regions))
   seq = getSeq(genome, chrom, start(regions), end(regions))
@@ -45,7 +45,7 @@ cpg_GR <- function(genome, regions) {
   expected = freq["C"] / sum(freq) * freq["G"] / sum(freq)
   ratio = cpg / expected
 
-  cpg.status = c("lcpg", "hcpg")[as.numeric(ratio > 0.5) + 1]
+  cpg.status = c("lcpg", "hcpg")[as.numeric(ratio > threshold) + 1]
 
   meta = elementMetadata(regions)
   if ("ID" %in% colnames(meta)) {

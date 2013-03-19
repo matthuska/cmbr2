@@ -334,7 +334,7 @@ countBamInGRangesFast <- function(bam.file, granges, verbose=FALSE) {
   cnts <- countBam(bam.file,param=ScanBamParam(what=fields,which=granges))
 
   if (verbose)
-    cat("[", format(Sys.time()), "] Finished reading counts for GenomicRanges for", bam.file)
+    cat("[", format(Sys.time()), "] Finished reading counts for GenomicRanges for", bam.file, "\n")
 
   # order the coverage matrix in the same way as the granges argument (helmuth 2013-02-19)
   values(granges)["OriginalOrder"]  <- 1:length(granges)
@@ -342,7 +342,7 @@ countBamInGRangesFast <- function(bam.file, granges, verbose=FALSE) {
   cnts  <- cnts[order(cntVals[,1]), ]
 
   if (verbose)
-    cat("[", format(Sys.time()), "] Reordering count vector to order in supplied GenomicRanges for", bam.file)
+    cat("[", format(Sys.time()), "] Reordering count vector to order in supplied GenomicRanges for", bam.file, "\n")
 
   invisible(cnts$records)
 }
@@ -564,15 +564,16 @@ coverageBamInGRangesWindows  <- function( bam.file, granges, window.width=300, s
 # Extra parameters are given to FUN
 #
 # Returns a list of vectors or data.frames (depending on the plugged in function)
-processListOfBamsInGRanges  <- function( bam.files, granges=granges, mc.cores=NA, FUN=countBamInGRangesFast, ... ) {
+processListOfBamsInGRanges  <- function( bam.files, granges=granges, mc.cores=NA, FUN=countBamInGRangesFast, verbose=FALSE, ... ) {
   require(multicore)
 
   if ( is.na(mc.cores) ) {
     mc.cores = length( bam.files )
   }
   counts = mclapply( 1:length(bam.files), function( i ) {
-    print( paste("[", Sys.time(), "] Processor", i ,": Retrieving tag count for", bam.files[i], ".") )
-    FUN( bam.file=bam.files[i], granges=granges, ... )
+										if (verbose)
+											cat("[", format(Sys.time()), "] Processor", i ,": Retrieving tag count for", bam.files[i], ".\n")
+										FUN( bam.file=bam.files[i], granges=granges, ... )
   }, mc.cores=mc.cores )
 
   names(counts) = sapply( bam.files, function( file ) { tail( unlist(strsplit( file, "/", fixed=T)), 1 ) } )
@@ -592,11 +593,12 @@ processListOfBamsInGRanges  <- function( bam.files, granges=granges, mc.cores=NA
 #' @author Johannes Helmuth i<helmuth@molgen.mpg.de>
 #' @date  2013-03-11
 #'
-getConvolution <- function(bamfile, regions, bin.size=50, mc.cores=4) {
+getConvolution <- function(bamfile, regions, bin.size=50, mc.cores=4, verbose=FALSE) {
   require( multicore )
 
   co = coverageBamInGRangesFast( bamfile, regions )
-  print( paste("[", Sys.time(),"] Extract maximum convolution value for each promoter") )
+	if (verbose)
+	  cat("[", Sys.time(),"] Extract maximum convolution value for each promoter. \n" )
   peaks = mclapply( 1:dim(co)[1], function( j ) {
     promoter = co[j,]
     steps = sapply( 1:(length(promoter)-2*bin.size+1), function( i ) {
