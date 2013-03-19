@@ -337,8 +337,8 @@ countBamInGRangesFast <- function(bam.file, granges, verbose=FALSE) {
     cat("[", format(Sys.time()), "] Finished reading counts for GenomicRanges for", bam.file)
 
   # order the coverage matrix in the same way as the granges argument (helmuth 2013-02-19)
-  mcols(granges)["OriginalOrder"]  <- 1:length(granges)
-  cntVals <- unlist(split(mcols(granges)["OriginalOrder"], seqnames(granges)))
+  values(granges)["OriginalOrder"]  <- 1:length(granges)
+  cntVals <- unlist(split(values(granges)["OriginalOrder"], seqnames(granges)))
   cnts  <- cnts[order(cntVals[,1]), ]
 
   if (verbose)
@@ -509,8 +509,8 @@ coverageBamInGRangesFast <- function(bam.file, granges, frag.width=NULL, verbose
     cat("[", format(Sys.time()), "] Finished reading coverage for GenomicRanges for", bam.file)
 
   # order the coverage matrix in the same way as the granges argument (helmuth 2013-02-19)
-  mcols(granges)["OriginalOrder"]  <- 1:length(granges)
-  cntVals <- unlist(split(mcols(granges)["OriginalOrder"], seqnames(granges)))
+  values(granges)["OriginalOrder"]  <- 1:length(granges)
+  cntVals <- unlist(split(values(granges)["OriginalOrder"], seqnames(granges)))
   grange.coverage  <- grange.coverage[order(cntVals[,1]),]
 
   if (verbose)
