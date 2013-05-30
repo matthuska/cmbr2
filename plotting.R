@@ -42,6 +42,7 @@ resetPar <- function() {
 #' @date  2013/03/07
 #' @export
 plotSignature <- function(coverage, groupings=NA, grouping.order=NA, classes=NA, classes.color=NA, property=NA, property.lab="", ordering=NA, color=gray.colors(25), scale.=T, title=NA, barpl=T, markings=NULL) {
+  require(gtools)
 
   stopifnot(length(coverage) >= 1)
 
@@ -199,7 +200,7 @@ plotSignature <- function(coverage, groupings=NA, grouping.order=NA, classes=NA,
 #' @date  2013/03/11
 #' @export
 #' 
-plotProfile <- function( coverage, x.bins=NA, groupings=NA, grouping.order=NA, color=NA, method="median", scale.=T, mark.quartiles=T, markings=NULL, ylim=ylim, ... ) {
+plotProfile <- function( coverage, x.bins=NA, groupings=NA, grouping.order=NA, color=NA, method="median", scale.=T, mark.quartiles=T, markings=NULL, ylim=NULL,  ... ) {
 
   stopifnot(length(coverage) >= 1)
 
@@ -252,6 +253,7 @@ plotProfile <- function( coverage, x.bins=NA, groupings=NA, grouping.order=NA, c
 	y.max = max( y.max, unlist(y.values), unlist(higher.quantiles))	
       }
     }
+    ylim = c(y.min, y.max)
   } 
 
   # start plotting
@@ -275,6 +277,10 @@ plotProfile <- function( coverage, x.bins=NA, groupings=NA, grouping.order=NA, c
     # start drawing
     plot(1, type="n", main=k.names[i], xlim=c( min(x.values) ,max(x.values)), xaxs="i", xaxt="n",  ylim=ylim, yaxs="i",  ... )
     axis(1, at=x.values, labels=T)
+    grid(nx=(length(x.values)-1))
+
+    # add legend
+    legend("topright", legend=grouping.order, fill=color, border="white", bg="white", horiz=F)
 
     for (j in 1:g) {
       lines( x.values , y.values[[j]] , col=color[j], lty=1, ... )
@@ -290,11 +296,8 @@ plotProfile <- function( coverage, x.bins=NA, groupings=NA, grouping.order=NA, c
 	abline(v=markings[j], lty=5, col=names(markings)[j])
       }
 
-      # add legend
-      legend("topright", legend=grouping.order, fill=color, border="white", bg="white", horiz=F)
     }
 
-    grid(nx=(length(x.values)-1))
   }
 
 
