@@ -34,34 +34,36 @@
 #' 
 #' helmuth <helmuth@molgen.mpg.de> 2013-03-06
 normalizeList <- function( counts, control.vector, method="median", mc.cores=4 ) {
-	require( multicore )
+  require( multicore )
+  stopifnot( method == "median" )
+  normalized = mclapply( 1:length(control.vector), function( i ) {
+			if (is.na( control.vector[ i ]  )) { # not included (won't be an element in the output)
+			  ( NA )
+			} else {
+			  signal = counts[[ i ]]
+			  if ( is.element( control.vector[ i ] , names( counts ) )) {
 
-	stopifnot( method == "median" )
+			    if (method == "median" ) {
+			      cl= counts[[ control.vector[ i ] ]]
+			      r = (cl + 1) * median( (signal + 1) /  (cl + 1 ))
+			      x = (signal+1) / r 
 
-	normalized = mclapply( 1:length(control.vector), function( i ) {
-	 											 if (is.na( control.vector[ i ]  )) { # not included (won't be an element in the output)
-														( NA )
-												 } else {
-	 											 	signal = counts[[ i ]]
-												 	if ( is.element( control.vector[ i ] , names( counts ) )) {
+			      # helmuth 2013-09-04: Alternative method using less pseudo counts
+			      #r = cl * median( (signal + 1) /  (cl + 1 ))
+			      #x = signal / r 
+			      #x[ which(is.na(x) | is.infinite(x)) ] = 0
+			      (x)
+			    } else {
+			      #TODO implement other normalization methods
+			      #} else if (method == "new_method") {
+			    }
+			  } else {
+			    ( signal / ( get( control.vector[ i ] )( signal ) ) )
+			  }
+			}
+}, mc.cores=mc.cores)
+  normalized          = normalized[  which( !is.na( control.vector ) ) ]
+  names( normalized ) = names( counts[ which( !is.na( control.vector ) ) ] )
 
-	 													if (method == "median" ) {
-	 												 		cl= counts[[ control.vector[ i ] ]]
-		          	         	  	r = cl * ( median(( signal /  cl), na.rm=T) + 1 ) # + 1 because if median is ZERO we get in trouble (helmuth 2013-02-27)
-	  	                   	  	x = signal / r 
-													 	 	x[ which(is.na(x) | is.infinite(x)) ] = 0
-															(x)
-														} else {
-															#TODO implement other normalization methods
-														#} else if (method == "new_method") {
-														}
-												 	} else {
-												 	 	( signal / ( get( control.vector[ i ] )( signal ) ) )
-												 	}
-												 }
-               }, mc.cores=mc.cores)
-	normalized          = normalized[  which( !is.na( control.vector ) ) ]
-	names( normalized ) = names( counts[ which( !is.na( control.vector ) ) ] )
-
-	return ( normalized )
+  return ( normalized )
 }
