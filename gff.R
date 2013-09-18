@@ -164,19 +164,16 @@ GR2bed <- function(regions, filename, header=FALSE, writeMetadata=TRUE) {
   else if (!is.null(score(regions))) fieldNum = 5
   else if (!is.null(names(regions))) fieldNum = 4
 
-
-
-
   if (fieldNum > 3){
     if (!is.null(names(regions))) tab$name=names(regions)
     else tab$name=rep("*", length(regions))
 
     if (fieldNum > 4){
       if (!is.null(score(regions))) tab$score=score(regions)
-      else tab$score=rep("*", length(regions))
+      else tab$score=rep("0", length(regions))
 
       if (fieldNum > 5){
-        strnd <- rep("*", length(strand(regions)))
+        strnd <- rep(".", length(strand(regions)))
         strnd[as.logical(strand(regions)=="+")] <- "+"
         strnd[as.logical(strand(regions)=="-")] <- "-"
         tab$strand=strnd
