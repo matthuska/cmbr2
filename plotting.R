@@ -253,7 +253,8 @@ plotProfile <- function( coverage, x.bins=NA, groupings=NA, grouping.order=NA, c
 	y.max = max( y.max, unlist(y.values), unlist(higher.quantiles))	
       }
     }
-    ylim = c(y.min, y.max)
+    #ylim = c(y.min, y.max)
+    ylim = c(0, y.max)
   } 
 
   # start plotting
