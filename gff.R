@@ -223,10 +223,7 @@ bed2GR <- function(filename, nfields=6, skip=0, what=NA, genome) {
   } else {
     nfields <- length(what)
   }
-  else {
-    nfields = length(what)
-  }
-
+  
   regions = scan(filename, what=what, sep="\t", skip=skip, flush=TRUE)
 
   if (nfields >= 6) {
