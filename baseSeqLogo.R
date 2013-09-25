@@ -1,6 +1,6 @@
 letterA <- function (x.pos, y.pos, ht, wt) 
 {
-	x <- c(0,  4,  6, 10,  8,  5, 2, 0, NA,3.2,3.6,6.4,6.8,3.2)
+	x <- c(0,  4,  6, 10,  8,  5, 2, 0, NA,2.2,2.6,7.4,7.8,2.2)
 	y <- c(0, 10, 10,  0,  0,7.5, 0, 0, NA,  3,  4,  4,  3,  3)
 	x <- 0.1 * x
 	y <- 0.1 * y
@@ -125,7 +125,7 @@ baseSeqLogo <- function (pwm, ic.scale = TRUE, xlab = "Position", ...)
 	npos <- ncol(pwm)
 	if (ic.scale) {
 		ylim <- 2
-		ylab <- "Information content"
+		ylab <- "bits"
 		facs <- pwm2ic(pwm)
 	}
 	else {
