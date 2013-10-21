@@ -320,33 +320,49 @@ countBamInGRanges <- function(bam.file, granges, min.mapq=NULL, read.width=1) {
 #
 # Also, we do not filter by mapping quality (min.mapq) or allow the modification
 # of the read width.
-countBamInGRangesFast <- function(bam.file, granges, verbose=FALSE) {
+countBamInGRangesFast <- function(bam.file, granges, verbose=FALSE, strand.specific=F) {
   require(GenomicRanges)
   require(Rsamtools)
 
   if (verbose)
     cat("[", format(Sys.time()), "] Started reading counts for GenomicRanges for", bam.file, "\n")
 
-  rds.counts <- numeric(length(granges))
-  seq.names <- as.character(unique(seqnames(granges)))
-  seq.names.in.bam <- names(scanBamHeader(bam.file)[[1]]$targets)
-  fields <- c("pos")
-  strand(granges) <- "*"
+  if ( strand.specific) {
+    fields <- c("pos")
 
-  cnts <- countBam(bam.file,param=ScanBamParam(what=fields,which=granges))
+    cnts.p <- countBam(bam.file,param=ScanBamParam(flag=scanBamFlag(isMinusStrand=F), what=fields,which=granges[ strand(granges) == "+" ]))
+    cnts.m <- countBam(bam.file,param=ScanBamParam(flag=scanBamFlag(isMinusStrand=T), what=fields,which=granges[ strand(granges) == "-" ]))
 
-  if (verbose)
-    cat("[", format(Sys.time()), "] Finished reading counts for GenomicRanges for", bam.file, "\n")
+    if (verbose)
+      cat("[", format(Sys.time()), "] Finished reading counts for GenomicRanges for", bam.file, "\n")
 
-  # order the coverage matrix in the same way as the granges argument (helmuth 2013-02-19)
-  values(granges)["OriginalOrder"]  <- 1:length(granges)
-  cntVals <- unlist(split(values(granges)["OriginalOrder"], seqnames(granges)))
-  cnts  <- cnts[order(cntVals[,1]), ]
+    # order the coverage matrix in the same way as the granges argument (helmuth 2013-02-19)
+    if (verbose)
+      cat("[", format(Sys.time()), "] Reordering count vector to order in supplied GenomicRanges for", bam.file, "\n")
+    cnts = rep(0, length(granges))
+    values(granges)["OriginalOrder"]  <- 1:length(granges)
+    cntVals.p <- unlist(split(values(granges[ strand(granges) == "+" ])["OriginalOrder"], seqnames(granges[ strand(granges) == "+" ])))
+    cnts[ which( strand(granges) == "+" )] <- cnts.p[order(cntVals.p[,1]), "records" ]
+    cntVals.m <- unlist(split(values(granges[ strand(granges) == "-" ])["OriginalOrder"], seqnames(granges[ strand(granges) == "-" ])))
+    cnts[ which( strand(granges) == "-" )] <- cnts.m[order(cntVals.m[,1]), "records" ]
 
-  if (verbose)
-    cat("[", format(Sys.time()), "] Reordering count vector to order in supplied GenomicRanges for", bam.file, "\n")
+  } else {
+    fields <- c("pos")
+    cnts <- countBam(bam.file,param=ScanBamParam(what=fields,which=granges))
 
-  invisible(cnts$records)
+    if (verbose)
+      cat("[", format(Sys.time()), "] Finished reading counts for GenomicRanges for", bam.file, "\n")
+
+    # order the coverage matrix in the same way as the granges argument (helmuth 2013-02-19)
+    if (verbose)
+      cat("[", format(Sys.time()), "] Reordering count vector to order in supplied GenomicRanges for", bam.file, "\n")
+
+    values(granges)["OriginalOrder"]  <- 1:length(granges)
+    cntVals <- unlist(split(values(granges)["OriginalOrder"], seqnames(granges)))
+    cnts  <- cnts[order(cntVals[,1]), "records"]
+
+  }
+  invisible(cnts)
 }
 
 getBins <- function(chr=NULL, n=NULL, bin.size=NULL, genome=Rnorvegicus, offset=0) {
