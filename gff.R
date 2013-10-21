@@ -147,7 +147,8 @@ bed2GR2 <- function(filename, parseMetadata=TRUE, ...) {
 
   if (!parseMetadata) what <- what[1:min(length(what), 6)]
   #todo: try to parse possible headers to get the column names right
-  if (length(what)>6) names(what)[7:length(what)] <- paste("metadata",1:(length(what)-6), sep="_")
+  if (length(what)>6) names(what)[7:length(what)] <- paste("md",1:(length(what)-6), sep="")
+  
   bed2GR(filename, what=what, skip=lIndex-1, ...)
 
 }
@@ -164,19 +165,16 @@ GR2bed <- function(regions, filename, header=FALSE, writeMetadata=TRUE) {
   else if (!is.null(score(regions))) fieldNum = 5
   else if (!is.null(names(regions))) fieldNum = 4
 
-
-
-
   if (fieldNum > 3){
     if (!is.null(names(regions))) tab$name=names(regions)
     else tab$name=rep("*", length(regions))
 
     if (fieldNum > 4){
       if (!is.null(score(regions))) tab$score=score(regions)
-      else tab$score=rep("*", length(regions))
+      else tab$score=rep("0", length(regions))
 
       if (fieldNum > 5){
-        strnd <- rep("*", length(strand(regions)))
+        strnd <- rep(".", length(strand(regions)))
         strnd[as.logical(strand(regions)=="+")] <- "+"
         strnd[as.logical(strand(regions)=="-")] <- "-"
         tab$strand=strnd
@@ -220,12 +218,12 @@ bed2GR <- function(filename, nfields=6, skip=0, what=NA, genome) {
   # If the user hasn't specified the exact fields to parse, then grab
   # the first "nfields" columns and assume the data types are the ones
   # in the BED spec
-  if (!is.list(what)) {
+  if (!is.list(what) && is.na(what)) {
     what = list(character(), numeric(), numeric(), character(), numeric(), character())[1:nfields]
   } else {
     nfields <- length(what)
   }
-
+  
   regions = scan(filename, what=what, sep="\t", skip=skip, flush=TRUE)
 
   if (nfields >= 6) {
