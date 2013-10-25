@@ -525,10 +525,10 @@ coverageBamInGRanges <- function(bam.file, granges, min.mapq, reads.collapsed=FA
 #'
 #' helmuth 2013-10-21: Added GRanges strand specific counting. For unspecified 
 #'                     strands ('*') counting will be done on both strands. It
-#'                     slows done running time by a magnitude of 
+#'                     slows done running time only subtly.
 #'
 #' helmuth 2013-10-25: Added minimum mapping quality filtering. It slows done
-#'                     running time by a magnitude of
+#'                     running time only subtly.
 #'
 #' TODO: consider the strand of the reads. Right now the start of the read is
 #' always the "left-most" or "lowest" position (as returned by scanBam)
@@ -605,11 +605,11 @@ coverageBamInGRangesFast <- function(bam.file, granges, frag.width=NULL, verbose
   grange.coverage <- do.call(rbind, start_sums) - do.call(rbind, end_sums)
 
   if (verbose)
-    cat("[", format(Sys.time()), "] Finished reading coverage for GenomicRanges for ", bam.file)
+    cat("[", format(Sys.time()), "] Finished reading coverage for GenomicRanges for", bam.file, ".\n")
 
   # order the coverage matrix in the same way as the granges argument (helmuth 2013-02-19)
   if (verbose)
-    cat("[", format(Sys.time()), "] Reordering coverage matrix rows to order in supplied GenomicRanges for ", bam.file)
+    cat("[", format(Sys.time()), "] Reordering coverage matrix rows to order in supplied GenomicRanges for", bam.file, ".\n")
 
   values(granges)["OriginalOrder"]  <- 1:length(granges)
   cntVals <- unlist(split(values(granges)["OriginalOrder"], seqnames(granges)))
@@ -617,7 +617,7 @@ coverageBamInGRangesFast <- function(bam.file, granges, frag.width=NULL, verbose
 
   # reverse the ones on the minus strand
   if (verbose)
-    cat("[", format(Sys.time()), "] Reversing coverage for ranges on minus strand for ", bam.file)
+    cat("[", format(Sys.time()), "] Reversing coverage for ranges on minus strand for", bam.file, ".\n")
 
   minus <- as.logical(strand(granges) == "-")
   if (any(minus)) {
