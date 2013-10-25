@@ -307,7 +307,7 @@ countBamInGRanges <- function(bam.file, granges, min.mapq=NULL, read.width=1) {
     }
     print( paste("[", Sys.time(),"] Finished processing count on chromosome", seq.name, "of file", bam.file) )
   }
-  rds .counts
+  rds.counts
 }
 
 #' Using countBam() is fast but a little messy: if you have overlapping ranges
@@ -409,7 +409,7 @@ countBamInGRangesFast <- function(bam.file, granges, verbose=FALSE, strand.speci
 
   }
 
-  invisible(cnts)
+   invisible(cnts)
 }
 
 getBins <- function(chr=NULL, n=NULL, bin.size=NULL, genome=Rnorvegicus, offset=0) {
@@ -457,7 +457,7 @@ coverageBamInGRanges <- function(bam.file, granges, min.mapq, reads.collapsed=FA
   grange.coverage = matrix(0, nrow=length(granges), ncol=w)
   for (seq.name in seq.names) {
     if  (seq.name %in% seq.names.in.bam) {
-      pr int( paste("[", Sys.time(),"] Started processing coverage on chromosome", seq.name, "of file", bam.file) )
+      print( paste("[", Sys.time(),"] Started processing coverage on chromosome", seq.name, "of file", bam.file) )
       granges.subset <- granges[seqnames(granges)==seq.name]
       strand(granges.subset) <- "*"
       what = c("pos", "mapq", "qwidth")
@@ -490,7 +490,7 @@ coverageBamInGRanges <- function(bam.file, granges, min.mapq, reads.collapsed=FA
         coverage.seq.name <- coverage(rds.ranges)[[1]]
         v = Views(coverage.seq.name, start=start(granges.subset), end=end(granges.subset))
         cvg = t(sapply(v, as.numeric))
-        g range.coverage[as.logical(seqnames(granges)==seq.name),] <- cvg
+        grange.coverage[as.logical(seqnames(granges)==seq.name),] <- cvg
       }
       print( paste("[", Sys.time(),"] Finished processing coverage on chromosome", seq.name, "of file", bam.file) )
     }
@@ -500,7 +500,7 @@ coverageBamInGRanges <- function(bam.file, granges, min.mapq, reads.collapsed=FA
   if (any(minus)) {
     grange.coverage[minus,] = t(apply(grange.coverage[minus,], 1, rev))
   }
-  retu rn(grange.coverage)
+  return(grange.coverage)
 }
 
 #' A fast(er) function to calculate coverage across a set of GRanges.
@@ -542,21 +542,22 @@ coverageBamInGRangesFast <- function(bam.file, granges, frag.width=NULL, verbose
   stopifnot(all(width(granges) == w))
 
   if (verbose) {
-    cat("[", format(Sys.time()), "] Started reading coverage for GenomicRanges for ", bam.file, "\n")
+    cat("[", format(Sys.time()), "] Started reading coverage for GenomicRanges for", bam.file, "\n")
 
-    if (strand.specificity)
-      cat(" with strand specificity ")
-    else
-      cat(" with no strand specificity ")
+    if (strand.specific) {
+      cat(" with strand specificity")
+    } else {
+      cat(" with no strand specificity")
+    }
 
     if (!is.na(min.mapq))
       cat(" and minimum mapping quality of", min.mapq)
 
     cat(".\n")
   }
-#TODO: quality filtering, strand.specifity, also strand.specific read start consideration
+#TODO: strand.specifity, also strand.specific read start consideration
 
-  what <- c("pos", "mapq", "qwidth")
+  what <- c("pos", "mapq", "qwidth", "strand")
 
   if (is.null(frag.width)) {
     rds <- scanBam(bam.file, param=ScanBamParam(what=what, which=granges))
@@ -567,14 +568,32 @@ coverageBamInGRangesFast <- function(bam.file, granges, frag.width=NULL, verbose
     rds <- scanBam(bam.file, param=ScanBamParam(what=what, which=resize(granges, width(granges) + 2*frag.width, fix="center")))
   }
 
+  labels <- names(rds)
+
+  # Filter by strand of given GenomicRange
+  if ( strand.specific ) {
+    values(granges)["OriginalOrder"]  <- 1:length(granges)
+    cntVals <- unlist(split(values(granges)["OriginalOrder"], seqnames(granges)))
+    strands <- as.vector( strand(granges[ cntVals[,1] ]) )
+
+    rds  <- lapply(1:length(rds), function( i ) { lapply(rds[[i]], "[", which(rds[[i]]$strand == strands[i] | strands[i] == "*")) })
+    names(rds) <- labels
+  }
+
+  # Filter by given minimum mapping quality
+  if ( !is.na(min.mapq) )
+    rds  <- lapply(rds, function( grange ) { lapply(grange, "[", which(grange$mapq >= min.mapq)) })
+
   read_pos <- lapply(rds, "[[", "pos")
+  widths <- lapply(rds, "[[", "qwidth")
+  rm( list=c("rds") )
+
   # Position of the read relative to the start of the grange
   #relative_pos <- mapply("-", read_pos, start(granges) - 1) #helmuth 2013-03-08: start(granges) gives starting coordinates in wrong order
-  region_start <- as.numeric(do.call("rbind", strsplit(names(rds), ':|-'))[,2])
+  region_start <- as.numeric(do.call("rbind", strsplit(labels, ':|-'))[,2])
   relative_pos <- mapply("-", read_pos, region_start - 1)
   starts <- lapply(relative_pos, function(s) { s[s < 1] <- 1; s[s > w] <- w; s })
   if (is.null(frag.width)) {
-    widths <- lapply(rds, "[[", "qwidth")
     ends <- mapply(function(x,y,w) {e <- x + y; e[e > w] <- w; e[e < 1] <- 1; e}, relative_pos, widths, w)
   } else {
     ends <- mapply(function(x,y,w) {e <- x + y; e[e > w] <- w; e[e < 1] <- 1; e}, relative_pos, frag.width, w)
