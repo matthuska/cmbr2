@@ -325,6 +325,10 @@ countBamInGRanges <- function(bam.file, granges, min.mapq=NULL, read.width=1) {
 #' helmuth 2013-10-25: Added minimum mapping quality filtering. It slows done
 #'                     running time by a magnitude of 1 or 2.
 #'
+#' TODO: For some reason scanBam returns <NA> MAPQ values for some bam files. I
+#' don't know what is happening there. I have a bam file with MAPQ of 0 or 255 
+#' but it just gives <NA> for 255. As a temporary fix I treat MAPQ values <NA> 
+#' as >= min.mapq.
 countBamInGRangesFast <- function(bam.file, granges, verbose=FALSE, strand.specific=F, min.mapq=NA) {
   require(GenomicRanges)
   require(Rsamtools)
@@ -350,9 +354,9 @@ countBamInGRangesFast <- function(bam.file, granges, verbose=FALSE, strand.speci
 
       if (verbose)
 	cat("[", format(Sys.time()), "] Filtering reads for minimum mapping quality", min.mapq, ".\n")
-      cnts.p  <- data.frame("records"=sapply(rds.p, function( grange ) { length( which(grange$mapq >= min.mapq) ) }))
-      cnts.m  <- data.frame("records"=sapply(rds.m, function( grange ) { length( which(grange$mapq >= min.mapq) ) }))
-      cnts.u  <- data.frame("records"=sapply(rds.u, function( grange ) { length( which(grange$mapq >= min.mapq) ) }))
+      cnts.p  <- data.frame("records"=sapply(rds.p, function( grange ) { length( which(grange$mapq >= min.mapq | is.na(grange$mapq)) ) }))
+      cnts.m  <- data.frame("records"=sapply(rds.m, function( grange ) { length( which(grange$mapq >= min.mapq | is.na(grange$mapq)) ) }))
+      cnts.u  <- data.frame("records"=sapply(rds.u, function( grange ) { length( which(grange$mapq >= min.mapq | is.na(grange$mapq)) ) }))
 
       rm(list=c("rds.p", "rds.m", "rds.u")) # We do not need this anymore
 
@@ -390,7 +394,7 @@ countBamInGRangesFast <- function(bam.file, granges, verbose=FALSE, strand.speci
 
       if (verbose)
 	cat("[", format(Sys.time()), "] Filtering reads for minimum mapping quality", min.mapq, ".\n")
-      cnts  <- data.frame("records"=sapply(rds, function( grange ) { length( which(grange$mapq >= min.mapq) ) }))
+      cnts  <- data.frame("records"=sapply(rds, function( grange ) { length( which(grange$mapq >= min.mapq | is.na(grange$mapq)) ) }))
 
       rm(list=c("rds")) # We do not need this anymore
 
@@ -512,12 +516,24 @@ coverageBamInGRanges <- function(bam.file, granges, min.mapq, reads.collapsed=FA
 #' which was 3kb in length took about 4.5 minutes with this function and
 #' approximately an hour with the old function.
 #'
+#' To count on each strand seperately the following example illustrates
+#' a possible use case:
+#'  profile.sense = coverageBamInGRangesFast( bam.file=file, granges=gr, verbose=T, strand.specific=T, min.mapq=35)
+#'  gr.antisense = gr
+#'  strand(gr.antisense)[ strand(gr) == "+" ] = "-"
+#'  strand(gr.antisense)[ strand(gr) == "-" ] = "+"                                                                                                           
+#'  profile.antisense = coverageBamInGRangesFast( bam.file=file, granges=gr.antisense, verbose=T, strand.specific=T, min.mapq=35)
+#' 
 #' @param bam.file the full path to a bam file. It should have an associated
 #' index with the same name and .bai at the end.
 #' @param granges a GRanges object where all ranges have the same width
 #' @param frag.width an optional parameter to force the fragment width to
 #' something other than the read width contained in the bam file. By default
 #' the qwidth contained in the bam file is used.
+#' @param verbose give logging output
+#' @param strand.specific a boolean indicating if counting should be done 
+#' specificically on the strands indicated in granges
+#' @param min.mapq lower bound for reads to count with MAPQ (5th column bam.file)
 #' @return a length(granges) x width(granges) dimension matrix where each row
 #' is a grange and each column is a base pair relative to the start of the
 #' GRange.
@@ -532,6 +548,11 @@ coverageBamInGRanges <- function(bam.file, granges, min.mapq, reads.collapsed=FA
 #'
 #' TODO: consider the strand of the reads. Right now the start of the read is
 #' always the "left-most" or "lowest" position (as returned by scanBam)
+#'
+#' TODO: For some reason scanBam returns <NA> MAPQ values for some bam files. I
+#' don't know what is happening there. I have a bam file with MAPQ of 0 or 255 
+#' but it just gives <NA> for 255. As a temporary fix I treat MAPQ values <NA> 
+#' as >= min.mapq.
 #'
 coverageBamInGRangesFast <- function(bam.file, granges, frag.width=NULL, verbose=FALSE, strand.specific=F, min.mapq=NA) {
   require(GenomicRanges, quietly=TRUE)
@@ -555,7 +576,6 @@ coverageBamInGRangesFast <- function(bam.file, granges, frag.width=NULL, verbose
 
     cat(".\n")
   }
-#TODO: strand.specifity, also strand.specific read start consideration
 
   what <- c("pos", "mapq", "qwidth", "strand")
 
@@ -582,7 +602,7 @@ coverageBamInGRangesFast <- function(bam.file, granges, frag.width=NULL, verbose
 
   # Filter by given minimum mapping quality
   if ( !is.na(min.mapq) )
-    rds  <- lapply(rds, function( grange ) { lapply(grange, "[", which(grange$mapq >= min.mapq)) })
+    rds  <- lapply(rds, function( grange ) { lapply(grange, "[", which(grange$mapq >= min.mapq | is.na(grange$mapq))) })
 
   read_pos <- lapply(rds, "[[", "pos")
   widths <- lapply(rds, "[[", "qwidth")
