@@ -329,6 +329,13 @@ countBamInGRanges <- function(bam.file, granges, min.mapq=NULL, read.width=1) {
 #' don't know what is happening there. I have a bam file with MAPQ of 0 or 255 
 #' but it just gives <NA> for 255. As a temporary fix I treat MAPQ values <NA> 
 #' as >= min.mapq.
+#' 
+#' TODO: countBam and scanBam give 'left-most' position of mapping reads on 
+#' minus strand. We could enhance counting by ruling out contigs mapping with
+#' their 5'-end out of regions.
+#'
+#' TODO: We could incorporate a shift of the contigs 70 bp towards the fragment
+#' center and outrule contigs mapping outside of the granges regions.
 countBamInGRangesFast <- function(bam.file, granges, verbose=FALSE, strand.specific=F, min.mapq=NA) {
   require(GenomicRanges)
   require(Rsamtools)
@@ -534,6 +541,8 @@ coverageBamInGRanges <- function(bam.file, granges, min.mapq, reads.collapsed=FA
 #' @param strand.specific a boolean indicating if counting should be done 
 #' specificically on the strands indicated in granges
 #' @param min.mapq lower bound for reads to count with MAPQ (5th column bam.file)
+#' @param shift integer that specifies the number of bp the counted 5' end of the read is shifted. Default is 70 (1/2
+#' mononucleosomal length
 #' @return a length(granges) x width(granges) dimension matrix where each row
 #' is a grange and each column is a base pair relative to the start of the
 #' GRange.
@@ -545,16 +554,17 @@ coverageBamInGRanges <- function(bam.file, granges, min.mapq, reads.collapsed=FA
 #'
 #' helmuth 2013-10-25: Added minimum mapping quality filtering. It slows done
 #'                     running time only subtly.
-#'
-#' TODO: consider the strand of the reads. Right now the start of the read is
-#' always the "left-most" or "lowest" position (as returned by scanBam)
+#' 
+#' helmuth 2013-11-25: Added functionality for counting only 5' ends of reads and 
+#'                     <shift> parameter to shift 5' read starts 70 bp downstream 
 #'
 #' TODO: For some reason scanBam returns <NA> MAPQ values for some bam files. I
 #' don't know what is happening there. I have a bam file with MAPQ of 0 or 255 
 #' but it just gives <NA> for 255. As a temporary fix I treat MAPQ values <NA> 
 #' as >= min.mapq.
 #'
-coverageBamInGRangesFast <- function(bam.file, granges, frag.width=NULL, verbose=FALSE, strand.specific=F, min.mapq=NA) {
+coverageBamInGRangesFast <- function(bam.file, granges, frag.width=NULL, verbose=FALSE, strand.specific=F, min.mapq=NA,
+				     shift=70) {
   require(GenomicRanges, quietly=TRUE)
   require(Rsamtools, quietly=TRUE)
 
@@ -592,17 +602,35 @@ coverageBamInGRangesFast <- function(bam.file, granges, frag.width=NULL, verbose
 
   # Filter by strand of given GenomicRange
   if ( strand.specific ) {
-    values(granges)["OriginalOrder"]  <- 1:length(granges)
-    cntVals <- unlist(split(values(granges)["OriginalOrder"], seqnames(granges)))
-    strands <- as.vector( strand(granges[ cntVals[,1] ]) )
+    granges$OriginalOrder <- 1:length(granges)
+    cntVals <- unlist(split(granges$OriginalOrder, seqnames(granges)))
+    strands <- as.vector( strand(granges[ cntVals ]) )
 
-    rds  <- lapply(1:length(rds), function( i ) { lapply(rds[[i]], "[", which(rds[[i]]$strand == strands[i] | strands[i] == "*")) })
+    rds <- lapply(1:length(rds), function( i ) { lapply(rds[[i]], "[", which(rds[[i]]$strand == strands[i] | strands[i] == "*")) })
     names(rds) <- labels
   }
 
   # Filter by given minimum mapping quality
   if ( !is.na(min.mapq) )
-    rds  <- lapply(rds, function( grange ) { lapply(grange, "[", which(grange$mapq >= min.mapq | is.na(grange$mapq))) })
+    rds <- lapply(rds, function( region ) { lapply(region, "[", which(region$mapq >= min.mapq | is.na(region$mapq))) })
+
+  # Get 5' end for "-"-strand reads (see doc of scanBam:
+  #"* pos: This is the POS field in SAM Spec v1.4.  The genomic
+  #         coordinate at the start of the alignment.  Coordinates are `left-most', i.e., at the 3' end of a read on the
+  #         '-' strand, and 1-based. The position _excludes_ clipped nucleotides, even though soft-clipped nucleotides
+  #         are included in 'seq'."
+  rds <- lapply(rds, function( region ) { 
+		region$pos[ region$strand == "-" ] = region$pos[ region$strand == "-" ] + region$qwidth[ region$strand == "-"]; 
+		region })
+
+  # shift reads by <shift> bp downstream
+  if ( shift ) {
+    rds <- lapply(rds, function( region ) { 
+		  region$pos[ region$strand == "+" ] = region$pos[ region$strand == "+" ] + 70; 
+		  region$pos[ region$strand == "-" ] = region$pos[ region$strand == "-" ] - 70; 
+		  region
+		})
+  }
 
   read_pos <- lapply(rds, "[[", "pos")
   widths <- lapply(rds, "[[", "qwidth")

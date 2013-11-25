@@ -523,4 +523,78 @@ smkey <- function(x, y=NULL,
   invisible(dens)
 }
 
+scatter.classes <- function( x, y, main="", xlab=expression(paste(plain(log)[10], "( ", plain(RPKM), " )")),
+			    ylab=expression(paste(plain(log)[10], "( ", plain(RPKM)["CAGE"], " )")), classes=T, nbins=1024, border=NA ) {
+  source("computation/3.promoter_histone_modification_patterns/plotting.R")
 
+  # Remove upper quartiles from x and y
+  selected = NULL
+  for ( clazz in c("uHCP", "dHCP", "uLCP", "dLCP")) {
+    selected = c(selected, which( x[ gr$promoter.class == clazz ] < quantile(x[ gr$promoter.class == clazz ],.95) & y[ gr$promoter.class == clazz ] < quantile(y[ gr$promoter.class == clazz ],.95)))
+  }
+  x = x[selected]
+  y = y[selected]
+  granges = gr[selected]
+
+  min.x = min( x )
+  max.x = max( x )
+
+  min.y = min( y )
+  max.y = max( y )
+
+
+  zlim = c(Inf, -Inf)
+  for ( clazz in c("uHCP", "dHCP", "uLCP", "dLCP")) {
+    map  <- .smoothScatterCalcDensity1( cbind(x[ granges$promoter.class == clazz ], y[granges$promoter.class == clazz]), nbin=nbins)
+    dens <- map$fhat
+    dens <- array(dens^.25, dim=dim(dens))	
+
+    if ( min(dens) < zlim[1]) zlim[1] = min(dens)
+    if ( max(dens) > zlim[2]) zlim[2] = max(dens)
+  }
+
+  layout( matrix(c(1, 2, 7, 1, 3, 7, 1, 4,  7, 5, 6, 7), ncol=3, nrow=4, byrow=T), widths=c(3,1.2,.4), height=c(3,3,3,1.2))
+
+  #if (is.na(border)){
+  #  border = max( x[ values(tss)$expression.class == "inactive"] )
+  #}
+  for ( clazz in c("uHCP", "dHCP", "uLCP", "dLCP")) {
+    r = cor( x[ granges$promoter.class == clazz ], y[ granges$promoter.class == clazz ], method="spearman")
+    print( paste(clazz, "s | ", main, " | Correlation = ", r, sep=""))
+    par(mar=c(0,4,3,0))
+    trash = smkey( x[ granges$promoter.class == clazz ], y[ granges$promoter.class == clazz ], main=paste(clazz, "s | SCC ", format(r, digits=2), sep=""), xlab="", ylab="", xlim=c(min.x, max.x), ylim=c(min.y, max.y), legend=F, zlim=zlim, xaxt="n")
+    grid()
+    if (classes)
+      abline(v=border, col="white", lty=2)
+    mtext(ylab, side=2, line=2)
+  }
+
+  # add title
+  title(paste(main), outer=T)
+
+  # print color bars
+  par(mar=c(5,4,0,0))
+  plot(1, xlim=c(min.x, max.x), ylim=c(0,1), type = "n", axes=FALSE, xlab="", ylab="", xaxs="i")
+  if (classes) {
+    rect( par()$usr[1],  par()$usr[3]+.1, border,        par()$usr[3]+.8, col=classes.color[1], border="white")
+    rect( border,        par()$usr[3]+.1, par()$usr[2],  par()$usr[3]+.8, col=classes.color[2], border="white")
+  }
+  axis(1)
+  mtext(xlab, side=1, line=2.5)
+
+  plot(1, xlim=c(min.x, max.x), ylim=c(0,1), type = "n", axes=FALSE, xlab="", ylab="", xaxs="i")
+  if (classes) {
+    rect( par()$usr[1],  par()$usr[3]+.1, border,        par()$usr[3]+.8, col=classes.color[1], border="white")
+    rect( border,        par()$usr[3]+.1, par()$usr[2],  par()$usr[3]+.8, col=classes.color[2], border="white")
+  }
+  axis(1)
+  mtext(xlab, side=1, line=2.5)
+
+  #legend
+  old.par = par()	
+  par( mar=c(1,1,1,5))
+  plot(1, type = "n", axes=FALSE, xlab="", ylab="") #pseudoplot to draw legend
+  image.plot(cbind( x, y ), z=zlim,legend.only=T, add=F, legend.width=15, legend.shrink=.7)
+
+  par(old.par)
+}
