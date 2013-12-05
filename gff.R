@@ -18,8 +18,8 @@ gff2GR <- function(filename, gffAttrNames=NULL) {
   strand[strand == "-1"] = "-"
 
   gr = GRanges(seqnames=regions[[1]],
-    ranges=IRanges(start=regions[[4]], end=regions[[5]]),
-    strand=strand)
+	       ranges=IRanges(start=regions[[4]], end=regions[[5]]),
+	       strand=strand)
 
   src = regions[[2]]
   type = regions[[3]]
@@ -28,7 +28,7 @@ gff2GR <- function(filename, gffAttrNames=NULL) {
 
   if (!is.null(gffAttrNames)) {
     df = cbind(df, DataFrame(sapply(gffAttrNames, function(n)
-      extract(paste(n , "=(.+?)(;|$)", sep=""), regions[[9]]))))
+				    extract(paste(n , "=(.+?)(;|$)", sep=""), regions[[9]]))))
   }
   elementMetadata(gr) = df
 
@@ -58,12 +58,12 @@ makeGtfAttributes <- function(df, cols=NULL) {
   }
   cols = cols[o]
   return(paste(apply(sapply(cols, function(s) {
-    content = df[,s]
-    if (is.character(content) | is.factor(content)) {
-      content = paste('"', content, '"', sep="")
-    }
-    paste(gsub(".", "_", s, fixed=T), content, sep=" ")
-  }), 1, paste, collapse="; "), ";", sep=""))
+			    content = df[,s]
+			    if (is.character(content) | is.factor(content)) {
+			      content = paste('"', content, '"', sep="")
+			    }
+			    paste(gsub(".", "_", s, fixed=T), content, sep=" ")
+}), 1, paste, collapse="; "), ";", sep=""))
 }
 
 
@@ -76,8 +76,8 @@ gtf2GR <- function(filename, gtfAttrNames=NULL) {
   strand[strand == "."] = "*"
 
   gr = GRanges(seqnames=regions[[1]],
-    ranges=IRanges(start=regions[[4]], end=regions[[5]]),
-    strand=strand)
+	       ranges=IRanges(start=regions[[4]], end=regions[[5]]),
+	       strand=strand)
 
   src = regions[[2]]
   type = regions[[3]]
@@ -85,8 +85,8 @@ gtf2GR <- function(filename, gtfAttrNames=NULL) {
   df = data.frame(src, type, stringsAsFactors=F)
   if (!is.null(gtfAttrNames)) {
     df = data.frame(df, sapply(gtfAttrNames, function(n)
-      extract(paste(n , " (.+?)(;|$)", sep=""), regions[[9]])),
-      stringsAsFactors=F)
+			       extract(paste(n , " (.+?)(;|$)", sep=""), regions[[9]])),
+		    stringsAsFactors=F)
   }
   elementMetadata(gr) = df
   return(gr)
@@ -109,20 +109,20 @@ parseProperBEDLine <- function(bedline) {
   if (length(lineArgs)>=3){
     if (is.integer(argTypes[[2]])  &&  is.integer(argTypes[[3]])){
       if (length(lineArgs)>=5){
-        if (is.numeric(argTypes[[5]])){
-          if (all(length(lineArgs)>=6, !(lineArgs[6] %in% c("+", "-","*",".")))){
-            return (NA)
-          }
-          else{
-            return(argTypes)
-          }
-        }
-        else{
-          return (NA)
-        }
+	if (is.numeric(argTypes[[5]])){
+	  if (all(length(lineArgs)>=6, !(lineArgs[6] %in% c("+", "-","*",".")))){
+	    return (NA)
+	  }
+	  else{
+	    return(argTypes)
+	  }
+	}
+	else{
+	  return (NA)
+	}
       }
       else {
-        return(argTypes)
+	return(argTypes)
       }
     }
   }
@@ -148,7 +148,7 @@ bed2GR2 <- function(filename, parseMetadata=TRUE, ...) {
   if (!parseMetadata) what <- what[1:min(length(what), 6)]
   #todo: try to parse possible headers to get the column names right
   if (length(what)>6) names(what)[7:length(what)] <- paste("md",1:(length(what)-6), sep="")
-  
+
   bed2GR(filename, what=what, skip=lIndex-1, ...)
 
 }
@@ -174,14 +174,14 @@ GR2bed <- function(regions, filename, header=FALSE, writeMetadata=TRUE) {
       else tab$score=rep("0", length(regions))
 
       if (fieldNum > 5){
-        strnd <- rep(".", length(strand(regions)))
-        strnd[as.logical(strand(regions)=="+")] <- "+"
-        strnd[as.logical(strand(regions)=="-")] <- "-"
-        tab$strand=strnd
+	strnd <- rep(".", length(strand(regions)))
+	strnd[as.logical(strand(regions)=="+")] <- "+"
+	strnd[as.logical(strand(regions)=="-")] <- "-"
+	tab$strand=strnd
       }
 
       if (fieldNum > 6){
-        tab <- data.frame(tab, as(elementMetadata(regions)[extraColNames], "data.frame"))
+	tab <- data.frame(tab, as(elementMetadata(regions)[extraColNames], "data.frame"))
       }
     }
   }
@@ -223,7 +223,7 @@ bed2GR <- function(filename, nfields=6, skip=0, what=NA, genome) {
   } else {
     nfields <- length(what)
   }
-  
+
   regions = scan(filename, what=what, sep="\t", skip=skip, flush=TRUE)
 
   if (nfields >= 6) {
@@ -235,7 +235,7 @@ bed2GR <- function(filename, nfields=6, skip=0, what=NA, genome) {
 
   # GRanges are 1-indexed and closed, while BED intervals are 0-indexed and half-open
   gr = GRanges(seqnames=regions[[1]],
-    ranges=IRanges(start=regions[[2]]+1, end=regions[[3]]), strand=strand)
+	       ranges=IRanges(start=regions[[2]]+1, end=regions[[3]]), strand=strand)
 
   # If the genome has been specified, try to look up chromosome
   # lengths using the BSGenome packages and set these lengths in the
@@ -246,12 +246,12 @@ bed2GR <- function(filename, nfields=6, skip=0, what=NA, genome) {
     } else {
       installed = installed.genomes(splitNameParts = TRUE)
       if (!(genome %in% installed$provider_version)) {
-        warning(paste("The 'BSgnome' package for", genome, "is not installed. Leaving chromosome lengths unspecified."))
+	warning(paste("The 'BSgnome' package for", genome, "is not installed. Leaving chromosome lengths unspecified."))
       } else {
-        pkgname <- installed$pkgname[installed$provider_version == genome]
-        if (require(pkgname, character.only=TRUE)) {
-          seqlengths(gr) <- seqlengths(eval(as.name(pkgname)))[names(seqlengths(gr))]
-        }
+	pkgname <- installed$pkgname[installed$provider_version == genome]
+	if (require(pkgname, character.only=TRUE)) {
+	  seqlengths(gr) <- seqlengths(eval(as.name(pkgname)))[names(seqlengths(gr))]
+	}
       }
     }
   }
@@ -291,16 +291,16 @@ countBamInGRanges <- function(bam.file, granges, min.mapq=NULL, read.width=1) {
       strand(granges.subset) <- "*"
       rds <- scanBam(bam.file,param=ScanBamParam(what=c("pos","mapq"),which=range(granges.subset)))
       if (!is.null(min.mapq)) {
-        mapq.test <- rds[[1]]$mapq >= min.mapq & !is.na(rds[[1]]$mapq)
+	mapq.test <- rds[[1]]$mapq >= min.mapq & !is.na(rds[[1]]$mapq)
       } else {
-        mapq.test = rep(T, length(rds[[1]]$mapq))
+	mapq.test = rep(T, length(rds[[1]]$mapq))
       }
       if (sum(mapq.test) > 0) {
-        rds.ranges <- GRanges(seq.name,IRanges(start=rds[[1]]$pos[mapq.test],width=read.width))
-        rds.counts.seq.name <- countOverlaps(granges.subset,rds.ranges)
-         rds.counts[as.logical(seqnames(granges)==seq.name)] <- rds.counts.seq.name
+	rds.ranges <- GRanges(seq.name,IRanges(start=rds[[1]]$pos[mapq.test],width=read.width))
+	rds.counts.seq.name <- countOverlaps(granges.subset,rds.ranges)
+	rds.counts[as.logical(seqnames(granges)==seq.name)] <- rds.counts.seq.name
       } else {
-        rds.counts[as.logical(seqnames(granges)==seq.name)] <- 0
+	rds.counts[as.logical(seqnames(granges)==seq.name)] <- 0
       }
     } else {
       rds.counts[as.logical(seqnames(granges)==seq.name)] <- 0
@@ -420,7 +420,7 @@ countBamInGRangesFast <- function(bam.file, granges, verbose=FALSE, strand.speci
 
   }
 
-   invisible(cnts)
+  invisible(cnts)
 }
 
 getBins <- function(chr=NULL, n=NULL, bin.size=NULL, genome=Rnorvegicus, offset=0) {
@@ -473,35 +473,35 @@ coverageBamInGRanges <- function(bam.file, granges, min.mapq, reads.collapsed=FA
       strand(granges.subset) <- "*"
       what = c("pos", "mapq", "qwidth")
       if (reads.collapsed) {
-        what = c(what, "qname")
+	what = c(what, "qname")
       }
       rds <- scanBam(bam.file,param=ScanBamParam(what=what, which=range(granges.subset)))
       if (missing(min.mapq)) {
-        mapq.test = rep(T, length(rds[[1]]$mapq))
+	mapq.test = rep(T, length(rds[[1]]$mapq))
       } else {
-        mapq.test <- rds[[1]]$mapq >= min.mapq & !is.na(rds[[1]]$mapq)
+	mapq.test <- rds[[1]]$mapq >= min.mapq & !is.na(rds[[1]]$mapq)
       }
       if (sum(mapq.test) > 0) {
-        if (is.null(width)) {
-          width = rds[[1]]$qwidth[mapq.test]
-        }
-        rds.ranges <- GRanges(seq.name, IRanges(start=rds[[1]]$pos[mapq.test], width=width))
-        if (reads.collapsed) {
-          multiply = as.numeric(sapply(strsplit(rds[[1]]$qname[mapq.test], "_x"), "[", 2))
-          select = unlist(lapply(1:length(multiply), function(i) rep(i, multiply[i])))
-          rds.ranges = rds.ranges[select]
-        }
-        # set the seqlength, so the coverage Rle gets the right length
-        len = seqlengths(granges)[seq.name]
-        if (is.na(len)) {
-          len = max(c(end(granges), end(rds.ranges)))
-        }
-        seqlengths(rds.ranges)[seq.name] = len
+	if (is.null(width)) {
+	  width = rds[[1]]$qwidth[mapq.test]
+	}
+	rds.ranges <- GRanges(seq.name, IRanges(start=rds[[1]]$pos[mapq.test], width=width))
+	if (reads.collapsed) {
+	  multiply = as.numeric(sapply(strsplit(rds[[1]]$qname[mapq.test], "_x"), "[", 2))
+	  select = unlist(lapply(1:length(multiply), function(i) rep(i, multiply[i])))
+	  rds.ranges = rds.ranges[select]
+	}
+	# set the seqlength, so the coverage Rle gets the right length
+	len = seqlengths(granges)[seq.name]
+	if (is.na(len)) {
+	  len = max(c(end(granges), end(rds.ranges)))
+	}
+	seqlengths(rds.ranges)[seq.name] = len
 
-        coverage.seq.name <- coverage(rds.ranges)[[1]]
-        v = Views(coverage.seq.name, start=start(granges.subset), end=end(granges.subset))
-        cvg = t(sapply(v, as.numeric))
-        grange.coverage[as.logical(seqnames(granges)==seq.name),] <- cvg
+	coverage.seq.name <- coverage(rds.ranges)[[1]]
+	v = Views(coverage.seq.name, start=start(granges.subset), end=end(granges.subset))
+	cvg = t(sapply(v, as.numeric))
+	grange.coverage[as.logical(seqnames(granges)==seq.name),] <- cvg
       }
       print( paste("[", Sys.time(),"] Finished processing coverage on chromosome", seq.name, "of file", bam.file) )
     }
@@ -558,6 +558,10 @@ coverageBamInGRanges <- function(bam.file, granges, min.mapq, reads.collapsed=FA
 #' helmuth 2013-11-25: Added functionality for counting only 5' ends of reads and 
 #'                     <shift> parameter to shift 5' read starts 70 bp downstream 
 #'
+#' helmuth 2013-12-04: Added functionality for granges of different widths. If there
+#'                     are different widths the value will be a list of coverage for
+#'                     each GRange.
+#'
 #' TODO: For some reason scanBam returns <NA> MAPQ values for some bam files. I
 #' don't know what is happening there. I have a bam file with MAPQ of 0 or 255 
 #' but it just gives <NA> for 255. As a temporary fix I treat MAPQ values <NA> 
@@ -569,8 +573,7 @@ coverageBamInGRangesFast <- function(bam.file, granges, frag.width=NULL, verbose
   require(Rsamtools, quietly=TRUE)
 
   # first check that all granges have the same width
-  w <- width(granges[1])
-  stopifnot(all(width(granges) == w))
+  equally.sized = all(width(granges) == width(granges)[1])
 
   if (verbose) {
     cat("[", format(Sys.time()), "] Started reading coverage for GenomicRanges for", bam.file, "\n")
@@ -624,7 +627,7 @@ coverageBamInGRangesFast <- function(bam.file, granges, frag.width=NULL, verbose
 		region })
 
   # shift reads by <shift> bp downstream
-  if ( shift ) {
+  if ( shift > 0 ) {
     rds <- lapply(rds, function( region ) { 
 		  region$pos[ region$strand == "+" ] = region$pos[ region$strand == "+" ] + 70; 
 		  region$pos[ region$strand == "-" ] = region$pos[ region$strand == "-" ] - 70; 
@@ -639,18 +642,22 @@ coverageBamInGRangesFast <- function(bam.file, granges, frag.width=NULL, verbose
   # Position of the read relative to the start of the grange
   #relative_pos <- mapply("-", read_pos, start(granges) - 1) #helmuth 2013-03-08: start(granges) gives starting coordinates in wrong order
   region_start <- as.numeric(do.call("rbind", strsplit(labels, ':|-'))[,2])
+  region_end <- as.numeric(do.call("rbind", strsplit(labels, ':|-'))[,3])
   relative_pos <- mapply("-", read_pos, region_start - 1)
-  starts <- lapply(relative_pos, function(s) { s[s < 1] <- 1; s[s > w] <- w; s })
+  w <- region_end - region_start + 1
+  starts <- lapply(1:length(relative_pos), function(i) { s=relative_pos[[i]]; s[s < 1] <- 1; s[s > w[i]] <- w[i]; s })
   if (is.null(frag.width)) {
     ends <- mapply(function(x,y,w) {e <- x + y; e[e > w] <- w; e[e < 1] <- 1; e}, relative_pos, widths, w)
   } else {
     ends <- mapply(function(x,y,w) {e <- x + y; e[e > w] <- w; e[e < 1] <- 1; e}, relative_pos, frag.width, w)
   }
-  start_counts <- lapply(starts, tabulate, nbins=w)
-  end_counts <- lapply(ends, tabulate, nbins=w)
-  start_sums <- lapply(start_counts, cumsum)
-  end_sums <- lapply(end_counts, cumsum)
-  grange.coverage <- do.call(rbind, start_sums) - do.call(rbind, end_sums)
+
+  grange.coverage <- mapply( function( s, e, width ) { 
+			    x <- cumsum(tabulate( s, nbins=width )); 
+			    y <- cumsum(tabulate( e, nbins=width ));
+			    list(x-y)
+		}, starts, ends, w)
+  names(grange.coverage) <- labels
 
   if (verbose)
     cat("[", format(Sys.time()), "] Finished reading coverage for GenomicRanges for", bam.file, ".\n")
@@ -661,7 +668,7 @@ coverageBamInGRangesFast <- function(bam.file, granges, frag.width=NULL, verbose
 
   values(granges)["OriginalOrder"]  <- 1:length(granges)
   cntVals <- unlist(split(values(granges)["OriginalOrder"], seqnames(granges)))
-  grange.coverage  <- grange.coverage[order(cntVals[,1]),]
+  grange.coverage <- grange.coverage[order(cntVals[,1])]
 
   # reverse the ones on the minus strand
   if (verbose)
@@ -669,48 +676,68 @@ coverageBamInGRangesFast <- function(bam.file, granges, frag.width=NULL, verbose
 
   minus <- as.logical(strand(granges) == "-")
   if (any(minus)) {
-    grange.coverage[minus,] <- t(apply(grange.coverage[minus,], 1, rev))
+    grange.coverage[minus] <- lapply(grange.coverage[minus], rev)
   }
 
-  invisible(grange.coverage)
+  if (equally.sized) {
+    grange.coverage = do.call("rbind", grange.coverage)
+  }
+
+  invisible(grange.coverage) 
 }
 
-# Window based coverage counting
-#
-# your highness 2013-01-25 helmuth@molgen.mpg.de
-#
-# Equally sized granges necessary
-#
-# TODO: Maybe it is better to use countBamInGRanges for this purpose to count for bins
-#
-# Returns a list of data.frames with window counts for each grange
+#' Window based coverage counting
+#'
+#' your highness 2013-01-25 helmuth@molgen.mpg.de
+#'
+#' helmuth 2013-12-04: Added functionality for granges of different widths. If there
+#'                     are different widths the value will be a list of coverage for
+#'                     each GRange.
+#' 
+#' TODO: Maybe it is better to use countBamInGRanges for this purpose to count for 
+#' bins
+#'
+#' Returns a list of data.frames with window counts for each grange
 coverageBamInGRangesWindows  <- function( bam.file, granges, window.width=300, sliding.window=F, FUN=coverageBamInGRangesFast, ...) {
   require( GenomicRanges )
 
+  equally.sized = all(width(granges) == width(granges)[1])
+
   coverage = FUN( bam.file=bam.file, granges=granges, ... )
 
-  if ( sliding.window ) {
-    half.win.size = window.width / 2
-    window.count = width( granges )[1] / half.win.size - 1
-    window.coverage = do.call( "cbind", lapply(1:window.count, function(i) { rowSums(coverage[ , ((i-1) * half.win.size + 1):((i-1) * half.win.size + window.width)]) }) )
+  if (equally.sized) {
+    if ( sliding.window ) {
+      half.win.size = window.width / 2
+      window.count = width( granges )[1] / half.win.size - 1
+      window.coverage = do.call( "cbind", lapply(1:window.count, function(i) { rowSums(coverage[ , ((i-1) * half.win.size + 1):((i-1) * half.win.size + window.width)]) }) )
+    } else {
+      window.count = width( granges )[1] / window.width
+      window.coverage = do.call( "cbind", lapply(1:window.count, function(i) { rowSums(coverage[ , ((i-1) * window.width + 1):(i * window.width)]) }) )
+    }
   } else {
-    window.count = width( granges )[1] / window.width
-    window.coverage = do.call( "cbind", lapply(1:window.count, function(i) { rowSums(coverage[ , ((i-1) * window.width + 1):(i * window.width)]) }) )
-  }
+    if ( sliding.window ) {
+      half.win.size = window.width / 2
+      window.counts = width( granges ) / half.win.size - 1
+      window.coverage = mapply( function( x, wins ) { sapply(1:wins, function(i) { sum( x[ ((i-1) * half.win.size + 1):((i-1) * half.win.size + window.width) ] )})}, coverage, window.counts)
+    } else {
+      window.counts = width( granges ) / window.width - 1
+      window.coverage = mapply( function( x, wins ) { sapply(1:wins, function(i) { sum( x[ ((i-1) * window.width + 1):(i * window.width)] )})}, coverage, window.counts)
+    }
 
+  }
   return (window.coverage)
 }
 
-# Parallel processing for a list of bams (Thanks to Mike Love)
-#
-# your highness 2013-01-25 helmuth@molgen.mpg.de
-#
-# Takes in a list of bamfiles and does counting on multiple processors
-# The number of processors in determined by the length of the list of bamfiles or directly specified with mc.cores argument
-# The function is provided via FUN parameter. Default is countBamInGRangesFast
-# Extra parameters are given to FUN
-#
-# Returns a list of vectors or data.frames (depending on the plugged in function)
+#' Parallel processing for a list of bams (Thanks to Mike Love)
+#'
+#' your highness 2013-01-25 helmuth@molgen.mpg.de
+#'
+#' Takes in a list of bamfiles and does counting on multiple processors
+#' The number of processors in determined by the length of the list of bamfiles or directly specified with mc.cores argument
+#' The function is provided via FUN parameter. Default is countBamInGRangesFast
+#' Extra parameters are given to FUN
+#'
+#' Returns a list of vectors or data.frames (depending on the plugged in function)
 processListOfBamsInGRanges  <- function( bam.files, granges=granges, mc.cores=NA, FUN=countBamInGRangesFast, verbose=FALSE, ... ) {
   require(multicore)
 
@@ -718,10 +745,11 @@ processListOfBamsInGRanges  <- function( bam.files, granges=granges, mc.cores=NA
     mc.cores = length( bam.files )
   }
   counts = mclapply( 1:length(bam.files), function( i ) {
-										if (verbose)
-											cat("[", format(Sys.time()), "] Processor", i ,": Retrieving tag count for", bam.files[i], ".\n")
-										FUN( bam.file=bam.files[i], granges=granges, ... )
-  }, mc.cores=mc.cores )
+		    if (verbose)
+		      cat("[", format(Sys.time()), "] Processor", i ,": Retrieving tag count for", bam.files[i], "\n")
+		    FUN( bam.file=bam.files[i],
+			granges=granges, verbose=verbose, ... )
+		}, mc.cores=mc.cores )
 
   names(counts) = sapply( bam.files, function( file ) { tail( unlist(strsplit( file, "/", fixed=T)), 1 ) } )
 
@@ -744,20 +772,20 @@ getConvolution <- function(bamfile, regions, bin.size=50, mc.cores=4, verbose=FA
   require( multicore )
 
   co = coverageBamInGRangesFast( bamfile, regions )
-	if (verbose)
-	  cat("[", Sys.time(),"] Extract maximum convolution value for each promoter. \n" )
+  if (verbose)
+    cat("[", Sys.time(),"] Extract maximum convolution value for each promoter. \n" )
   peaks = mclapply( 1:dim(co)[1], function( j ) {
-    promoter = co[j,]
-    steps = sapply( 1:(length(promoter)-2*bin.size+1), function( i ) {
-      sum( promoter[(i+bin.size):(i+(2*bin.size-1))] ) - sum( promoter[i:(i+(bin.size)-1)] )
-    })
-    m = max( steps )
-    if ( m < 0 ) {
-      0
-    } else {
-      m
-    }
-  }, mc.cores=mc.cores)
+		   promoter = co[j,]
+		   steps = sapply( 1:(length(promoter)-2*bin.size+1), function( i ) {
+				  sum( promoter[(i+bin.size):(i+(2*bin.size-1))] ) - sum( promoter[i:(i+(bin.size)-1)] )
+			})
+		   m = max( steps )
+		   if ( m < 0 ) {
+		     0
+		   } else {
+		     m
+		   }
+		}, mc.cores=mc.cores)
 
   return ( unlist( peaks ) )
 }
