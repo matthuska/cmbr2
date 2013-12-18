@@ -312,7 +312,6 @@ countBamInGRanges <- function(bam.file, granges, min.mapq=NULL, read.width=1) {
   }
   rds.counts
 }
-
 #' Using countBam() is fast but a little messy: if you have overlapping ranges
 #' then you'll get duplicate counts (apparently). However if your ranges are
 #' reasonably distant from each other and you're okay with counting all reads
@@ -425,7 +424,6 @@ countBamInGRangesFast <- function(bam.file, granges, verbose=FALSE, strand.speci
 
   invisible(cnts)
 }
-
 #' Even faster implementation using the bamsignals package
 #'
 #' helmuth 2012-12-16
@@ -446,7 +444,7 @@ countBamInGRangesFaster <- function(bam.file, granges, verbose=FALSE, strand.spe
     if (!is.na(min.mapq))
       cat(" and minimum mapping quality of", min.mapq)
 
-    cat(".\n")
+     cat(".\n")
   }
 
   if (is.na(min.mapq))
@@ -456,14 +454,8 @@ countBamInGRangesFaster <- function(bam.file, granges, verbose=FALSE, strand.spe
 
   if (verbose)
     cat("[", format(Sys.time()), "] Finished reading counts for GenomicRanges for", bam.file, ".\n")
-  invisible( x )
-}
-#' Get bins across a genome
-#' 
-#' helmuth 2013-12-1: Added functionality for sliding bins, i.e 1/2 bin.size overlap to preceeding bin.
-#'
-countBamInGRangesFaster <- function(bam.file, granges, verbose=FALSE, strand.specific=F, min.mapq=NA) {
 
+  invisible( x[1,] ) # return only reads mapping to strand indicated in granges
 }
 
 #' Get bins across a genome
@@ -570,7 +562,6 @@ coverageBamInGRanges <- function(bam.file, granges, min.mapq, reads.collapsed=FA
   }
   return(grange.coverage)
 }
-
 #' A fast(er) function to calculate coverage across a set of GRanges.
 #'
 #' An alternative version of the coverageBamInGRanges() function. Unlike that
@@ -757,12 +748,9 @@ coverageBamInGRangesFast <- function(bam.file, granges, frag.width=NULL, verbose
 
   invisible(grange.coverage) 
 }
-
 #' Even faster implementation of coverageBamInGRanges using the bamsignals package (written by Alessandro)
 #'
 #' helmuth 2012-12-16
-#'
-#' TODO: The reversing of the ranges works only for regions with same width
 #'
 coverageBamInGRangesFaster <- function(bam.file, granges, verbose=FALSE, min.mapq=NA,
 				       shift=0) {
@@ -784,11 +772,12 @@ coverageBamInGRangesFaster <- function(bam.file, granges, verbose=FALSE, min.map
   if (verbose) 
     cat("[", format(Sys.time()), "] Finished reading coverage for GenomicRanges for", bam.file, "\n")
 
+  # helmuth 2013-12-17: Not needed anymore. bamsignals (v1.0) does reversing automatically
   # reverse the ones on the minus strand
-  if (verbose)
-    cat("[", format(Sys.time()), "] Reversing coverage for ranges on minus strand for", bam.file, ".\n")
-  minus = which(strand(granges) == "-")  
-  x$counts[, minus ] = apply(x$counts[,minus], 2, rev )
+  #if (verbose)
+  #  cat("[", format(Sys.time()), "] Reversing coverage for ranges on minus strand for", bam.file, ".\n")
+  #minus = which(strand(granges) == "-")  
+  #x$counts[, minus ] = apply(x$counts[,minus], 2, rev )
 
   invisible( x )
 }
@@ -839,37 +828,44 @@ coverageBamInGRangesWindows <- function( bam.file, granges, window.width=300, sl
 #'
 #' helmuth 2012-12-16
 #'
-#' TODO: The reversing of the ranges works only for regions with same width
-#'
 coverageBamInGRangesWindowsFaster <- function( bam.file, granges, verbose=FALSE, window.width=300, sliding.window=F, min.mapq=NA, shift=0, strand.specific=F) {
   require( GenomicRanges )
   require( bamsignals )
-
-  if ( sliding.window ) 
-    cat(" Sliding window pileup not yet implemented! Use coverageBamInGRangesWindows!\n")
+  require( caTools )
 
   if (is.na(min.mapq))
     min.mapq <- 0
 
   if (verbose) {
     cat("[", format(Sys.time()), "] Started reading coverage for GenomicRanges for", bam.file)
-
+    if ( strand.specific )
+      cat("strand-specifically")
+    if ( sliding.window ) {
+      cat(" with", window.width, "bp sliding windows")
+      window.width <- window.width / 2
+    } else {
+      cat(" with", window.width, "bp windows")
+    }
     if (!is.na(min.mapq))
       cat(" and minimum mapping quality of", min.mapq)
-
     cat(".\n")
   }
+
   x <- pileup(gr=granges, bampath=bam.file, mapqual=min.mapq, binsize=window.width, shift=shift, ss=strand.specific)
-  
+
+  if ( strand.specific ) # we only consider sense strand (i.e. the strand specified in granges)
+    x$counts <- x$counts[1,]
+
+  l <- lapply(1:length(x$starts), function(i) {( x$counts[ (x$starts[i]):(x$ends[i]) ] )})
+
+  if ( sliding.window )
+    l <- lapply( l, function(r) { runmean(x=r, k=2, align="left")[-length(r)]*2 } )
+    
   if (verbose) 
     cat("[", format(Sys.time()), "] Finished reading coverage for GenomicRanges for", bam.file, "\n")
 
-  if (verbose)
-    cat("[", format(Sys.time()), "] Reversing coverage for ranges on minus strand for", bam.file, ".\n")
-  minus = which(strand(granges) == "-")  
-  x$counts[, minus ] = apply(x$counts[,minus], 2, rev )
-
-  invisible( x )
+  names(l) = paste(seqnames(granges), ":", start(granges), "-", end(granges), sep="")
+  invisible( l )
 }
 
 
@@ -883,7 +879,7 @@ coverageBamInGRangesWindowsFaster <- function( bam.file, granges, verbose=FALSE,
 #' Extra parameters are given to FUN
 #'
 #' Returns a list of vectors or data.frames (depending on the plugged in function)
-processListOfBamsInGRanges  <- function( bam.files, granges=granges, mc.cores=NA, FUN=countBamInGRangesFast, verbose=FALSE, ... ) {
+processListOfBamsInGRanges  <- function( bam.files, granges=granges, mc.cores=NA, FUN=countBamInGRangesFaster, verbose=FALSE, ... ) {
   require(multicore)
 
   if ( is.na(mc.cores) ) {
