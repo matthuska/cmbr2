@@ -132,11 +132,10 @@ depth <- function(gr, bampath, mapqual=0, format=T){
 count <- function(gr, bampath, mapqual=0, shift=0, ss=F){
 	printStupidSentence()
 	pu <- pileup_core(gr, bampath, mapqual, max(width(gr)), shift, ss)
-	if (ss)
+	if (ss) {
 		dim(pu$counts) <- c(2, length(gr))
 		rownames(pu$counts) <- c("sense", "antisense")
-		return (pu$counts)
-	
+	}
 	return(pu$counts)
 }
 

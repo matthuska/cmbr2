@@ -879,7 +879,7 @@ coverageBamInGRangesWindowsFaster <- function( bam.file, granges, verbose=FALSE,
 #' Extra parameters are given to FUN
 #'
 #' Returns a list of vectors or data.frames (depending on the plugged in function)
-processListOfBamsInGRanges  <- function( bam.files, granges=granges, mc.cores=NA, FUN=countBamInGRangesFaster, verbose=FALSE, ... ) {
+processListOfBamsInGRanges  <- function( bam.files, granges=granges, mc.cores=NA, verbose=FALSE, FUN=countBamInGRangesFaster, .verbose=FALSE, ... ) {
   require(multicore)
 
   if ( is.na(mc.cores) ) {
@@ -889,10 +889,10 @@ processListOfBamsInGRanges  <- function( bam.files, granges=granges, mc.cores=NA
 		    if (verbose)
 		      cat("[", format(Sys.time()), "] Processor", i ,": Retrieving tag count for", bam.files[i], "\n")
 		    FUN( bam.file=bam.files[i],
-			granges=granges, verbose=verbose, ... )
+			granges=granges, verbose=.verbose, ... )
 		}, mc.cores=mc.cores )
 
-  names(counts) = sapply( bam.files, function( file ) { tail( unlist(strsplit( file, "/", fixed=T)), 1 ) } )
+  names(counts) =bam.files
 
   return (counts)
 }

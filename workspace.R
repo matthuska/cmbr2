@@ -16,3 +16,8 @@ remove_outliers <- function(x, na.rm = TRUE, probs=c(.05, .95), ...) {
   y
 }
 
+notify <- function(title="R script info", text="Script has finished with zero exit status") {
+  #system( "aplay /usr/share/sounds/pop.wav" )
+  system( paste("zenity --title=\"", title, "\" --text=\"", text, "\" --info", sep="") )
+}
+
