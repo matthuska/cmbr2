@@ -455,7 +455,7 @@ countBamInGRangesFaster <- function(bam.file, granges, verbose=FALSE, strand.spe
   if (verbose)
     cat("[", format(Sys.time()), "] Finished reading counts for GenomicRanges for", bam.file, ".\n")
 
-  invisible( x[1,] ) # return only reads mapping to strand indicated in granges
+  invisible( x ) # return only reads mapping to strand indicated in granges
 }
 
 #' Get bins across a genome
