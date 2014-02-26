@@ -174,7 +174,7 @@ GR2bed <- function(regions, filename, header=FALSE, writeMetadata=TRUE) {
          tab$score=score(regions)
          tab$score[is.na(tab$score)] = 0
       }  else tab$score=rep(0, length(regions))
-      
+
 
       if (fieldNum > 5){
 	strnd <- rep(".", length(strand(regions)))
@@ -191,6 +191,12 @@ GR2bed <- function(regions, filename, header=FALSE, writeMetadata=TRUE) {
 
   cnames <- F
   if (header) {cnames <- names(tab); cnames[1] <- paste("#", cnames[1], sep="")}
+
+  # Hack to make sure that start and end of regions are not output in
+  # scientific notation (e.g.  210000000 as 2.1e+08).
+  tab[,2] <- format(tab[,2], trim=TRUE, scientific=FALSE)
+  tab[,3] <- format(tab[,3], trim=TRUE, scientific=FALSE)
+
   write.table(tab, file=filename, sep="\t", quote=F, row.names=F, col.names=cnames)
 }
 
@@ -320,7 +326,7 @@ countBamInGRanges <- function(bam.file, granges, min.mapq=NULL, read.width=1) {
 #'
 #' Also, we do not allow the modification of the read width.
 #'
-#' helmuth 2013-10-21: Added GRanges strand specific counting. For unspecified 
+#' helmuth 2013-10-21: Added GRanges strand specific counting. For unspecified
 #'                     strands ('*') counting will be done on both strands. It
 #'                     slows done running time by a magnitude of 0.5.
 #'
@@ -328,11 +334,11 @@ countBamInGRanges <- function(bam.file, granges, min.mapq=NULL, read.width=1) {
 #'                     running time by a magnitude of 1 or 2.
 #'
 #' TODO: For some reason scanBam returns <NA> MAPQ values for some bam files. I
-#' don't know what is happening there. I have a bam file with MAPQ of 0 or 255 
-#' but it just gives <NA> for 255. As a temporary fix I treat MAPQ values <NA> 
+#' don't know what is happening there. I have a bam file with MAPQ of 0 or 255
+#' but it just gives <NA> for 255. As a temporary fix I treat MAPQ values <NA>
 #' as >= min.mapq.
-#' 
-#' TODO: countBam and scanBam give 'left-most' position of mapping reads on 
+#'
+#' TODO: countBam and scanBam give 'left-most' position of mapping reads on
 #' minus strand. We could enhance counting by ruling out contigs mapping with
 #' their 5'-end out of regions.
 #'
@@ -459,7 +465,7 @@ countBamInGRangesFaster <- function(bam.file, granges, verbose=FALSE, strand.spe
 }
 
 #' Get bins across a genome
-#' 
+#'
 #' helmuth 2013-12-10: Added functionality for sliding bins, i.e 1/2 bin.size overlap to preceeding bin.
 #'
 getBins <- function(chr=NULL, n=NULL, bin.size=NULL, genome=Rnorvegicus, offset=0, sliding.window=F) {
@@ -576,9 +582,9 @@ coverageBamInGRanges <- function(bam.file, granges, min.mapq, reads.collapsed=FA
 #'  profile.sense = coverageBamInGRangesFast( bam.file=file, granges=gr, verbose=T, strand.specific=T, min.mapq=35)
 #'  gr.antisense = gr
 #'  strand(gr.antisense)[ strand(gr) == "+" ] = "-"
-#'  strand(gr.antisense)[ strand(gr) == "-" ] = "+"                                                                                                           
+#'  strand(gr.antisense)[ strand(gr) == "-" ] = "+"
 #'  profile.antisense = coverageBamInGRangesFast( bam.file=file, granges=gr.antisense, verbose=T, strand.specific=T, min.mapq=35)
-#' 
+#'
 #' @param bam.file the full path to a bam file. It should have an associated
 #' index with the same name and .bai at the end.
 #' @param granges a GRanges object where all ranges have the same width
@@ -586,7 +592,7 @@ coverageBamInGRanges <- function(bam.file, granges, min.mapq, reads.collapsed=FA
 #' something other than the read width contained in the bam file. By default
 #' the qwidth contained in the bam file is used.
 #' @param verbose give logging output
-#' @param strand.specific a boolean indicating if counting should be done 
+#' @param strand.specific a boolean indicating if counting should be done
 #' specificically on the strands indicated in granges
 #' @param min.mapq lower bound for reads to count with MAPQ (5th column bam.file)
 #' @param shift integer that specifies the number of bp the counted 5' end of the read is shifted. Default is 70 (1/2
@@ -596,23 +602,23 @@ coverageBamInGRanges <- function(bam.file, granges, min.mapq, reads.collapsed=FA
 #' GRange.
 #' @author Matthew Huska, Johannes Helmuth
 #'
-#' helmuth 2013-10-21: Added GRanges strand specific counting. For unspecified 
+#' helmuth 2013-10-21: Added GRanges strand specific counting. For unspecified
 #'                     strands ('*') counting will be done on both strands. It
 #'                     slows done running time only subtly.
 #'
 #' helmuth 2013-10-25: Added minimum mapping quality filtering. It slows done
 #'                     running time only subtly.
-#' 
-#' helmuth 2013-11-25: Added functionality for counting only 5' ends of reads and 
-#'                     <shift> parameter to shift 5' read starts 70 bp downstream 
+#'
+#' helmuth 2013-11-25: Added functionality for counting only 5' ends of reads and
+#'                     <shift> parameter to shift 5' read starts 70 bp downstream
 #'
 #' helmuth 2013-12-04: Added functionality for granges of different widths. If there
 #'                     are different widths the value will be a list of coverage for
 #'                     each GRange.
 #'
 #' TODO: For some reason scanBam returns <NA> MAPQ values for some bam files. I
-#' don't know what is happening there. I have a bam file with MAPQ of 0 or 255 
-#' but it just gives <NA> for 255. As a temporary fix I treat MAPQ values <NA> 
+#' don't know what is happening there. I have a bam file with MAPQ of 0 or 255
+#' but it just gives <NA> for 255. As a temporary fix I treat MAPQ values <NA>
 #' as >= min.mapq.
 #'
 coverageBamInGRangesFast <- function(bam.file, granges, frag.width=NULL, verbose=FALSE, strand.specific=F, min.mapq=NA,
@@ -670,15 +676,15 @@ coverageBamInGRangesFast <- function(bam.file, granges, frag.width=NULL, verbose
   #         coordinate at the start of the alignment.  Coordinates are `left-most', i.e., at the 3' end of a read on the
   #         '-' strand, and 1-based. The position _excludes_ clipped nucleotides, even though soft-clipped nucleotides
   #         are included in 'seq'."
-  rds <- lapply(rds, function( region ) { 
-		region$pos[ region$strand == "-" ] = region$pos[ region$strand == "-" ] + region$qwidth[ region$strand == "-"] - 1; 
+  rds <- lapply(rds, function( region ) {
+		region$pos[ region$strand == "-" ] = region$pos[ region$strand == "-" ] + region$qwidth[ region$strand == "-"] - 1;
 		region })
 
   # shift reads by <shift> bp downstream
   if ( shift > 0 ) {
-    rds <- lapply(rds, function( region ) { 
-		  region$pos[ region$strand == "+" ] = region$pos[ region$strand == "+" ] + shift; 
-		  region$pos[ region$strand == "-" ] = region$pos[ region$strand == "-" ] - shift; 
+    rds <- lapply(rds, function( region ) {
+		  region$pos[ region$strand == "+" ] = region$pos[ region$strand == "+" ] + shift;
+		  region$pos[ region$strand == "-" ] = region$pos[ region$strand == "-" ] - shift;
 		  region
 		})
   }
@@ -698,7 +704,7 @@ coverageBamInGRangesFast <- function(bam.file, granges, frag.width=NULL, verbose
   region_end <- as.numeric(do.call("rbind", strsplit(labels, ':|-'))[,3])
   relative_pos <- mapply("-", read_pos, region_start - 1)
   region_width <- region_end - region_start + 1
-  starts_ends <- mapply(function(x, y, w, st) { 
+  starts_ends <- mapply(function(x, y, w, st) {
 			if (length(x) == 0)
 			  0
 			s <- x;
@@ -709,14 +715,14 @@ coverageBamInGRangesFast <- function(bam.file, granges, frag.width=NULL, verbose
 
 			s[ s < 1 ] <- 1;
 			s[ s > w ] <- w;
-			e[ e > w ] <- w; 
+			e[ e > w ] <- w;
 			e[ e < 1 ] <- 0;
 
 			list(s, e)
 		}, relative_pos, read_widths, region_width, strands, SIMPLIFY=F)
 
-  grange.coverage <- mapply( function( se, w ) { 
-			    x <- cumsum(tabulate( se[[1]], nbins=w )); 
+  grange.coverage <- mapply( function( se, w ) {
+			    x <- cumsum(tabulate( se[[1]], nbins=w ));
 			    y <- c(0, cumsum(tabulate( se[[2]], nbins=w-1 )));
 			    list(x-y)
 		}, starts_ends, region_width)
@@ -746,7 +752,7 @@ coverageBamInGRangesFast <- function(bam.file, granges, frag.width=NULL, verbose
     grange.coverage = do.call("rbind", grange.coverage)
   }
 
-  invisible(grange.coverage) 
+  invisible(grange.coverage)
 }
 #' Even faster implementation of coverageBamInGRanges using the bamsignals package (written by Alessandro)
 #'
@@ -769,14 +775,14 @@ coverageBamInGRangesFaster <- function(bam.file, granges, verbose=FALSE, min.map
   }
   x <- depth(gr=granges, bampath=bam.file, mapqual=min.mapq)
 
-  if (verbose) 
+  if (verbose)
     cat("[", format(Sys.time()), "] Finished reading coverage for GenomicRanges for", bam.file, "\n")
 
   # helmuth 2013-12-17: Not needed anymore. bamsignals (v1.0) does reversing automatically
   # reverse the ones on the minus strand
   #if (verbose)
   #  cat("[", format(Sys.time()), "] Reversing coverage for ranges on minus strand for", bam.file, ".\n")
-  #minus = which(strand(granges) == "-")  
+  #minus = which(strand(granges) == "-")
   #x$counts[, minus ] = apply(x$counts[,minus], 2, rev )
 
   invisible( x )
@@ -789,8 +795,8 @@ coverageBamInGRangesFaster <- function(bam.file, granges, verbose=FALSE, min.map
 #' helmuth 2013-12-04: Added functionality for granges of different widths. If there
 #'                     are different widths the value will be a list of coverage for
 #'                     each GRange.
-#' 
-#' TODO: Maybe it is better to use countBamInGRanges for this purpose to count for 
+#'
+#' TODO: Maybe it is better to use countBamInGRanges for this purpose to count for
 #' bins
 #'
 #' Returns a list of data.frames with window counts for each grange
@@ -860,8 +866,8 @@ coverageBamInGRangesWindowsFaster <- function( bam.file, granges, verbose=FALSE,
 
   if ( sliding.window )
     l <- lapply( l, function(r) { runmean(x=r, k=2, align="left")[-length(r)]*2 } )
-    
-  if (verbose) 
+
+  if (verbose)
     cat("[", format(Sys.time()), "] Finished reading coverage for GenomicRanges for", bam.file, "\n")
 
   names(l) = paste(seqnames(granges), ":", start(granges), "-", end(granges), sep="")
@@ -930,3 +936,5 @@ getConvolution <- function(bamfile, regions, bin.size=50, mc.cores=4, verbose=FA
 
   return ( unlist( peaks ) )
 }
+
+# vim: set ts=6 sw=6 et:
