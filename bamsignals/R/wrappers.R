@@ -5,6 +5,8 @@
 #' All the read-processing is done in C/C++ and the only output are read counts. 
 #'
 #' @name bamsignals
+#' @import IRanges
+#' @import GenomicRanges
 #' @docType package
 #' @author Alessandro Mammana \email{mammana@@molgen.mpg.de}
 #' @useDynLib bamsignals
@@ -139,7 +141,6 @@ count <- function(gr, bampath, mapqual=0, shift=0, ss=F){
 	return(pu$counts)
 }
 
-
 #' Handle the output of the \code{pileup} and \code{coverage} functions.
 #'
 #' Extract the signal corresponding to a specified range maintaining the correct formatting.
@@ -169,3 +170,44 @@ printStupidSentence <- function(){
 	"fOr brOoMmHiLdA!!!\n")
 	cat(sample(sentences, 1))
 }
+
+
+strandToBool <- function(s){
+	l <- levels(s)
+	h <- logical(length(l))
+	h[match(c("+","*","-"), l)] <- c(TRUE,TRUE,-FALSE)
+	h[as.vector(s, mode="integer")]
+}
+
+xnor <- function(x, y) {(x & y) | !(x | y)}
+ 
+getIdxRanges <- function(pu, pugr, subsetgr, strand=F){
+	countsPerBase = (pu$end[1] - pu$start[1] + 1)/width(pugr[1])
+	if (	length(pu$end) != length(pugr) || 
+			any(pu$end-pu$start+1 != width(pugr)*countsPerBase)) stop("pu and pugr object do not match")
+	
+	ov <- findOverlaps(subsetgr, pugr, type="within", select="arbitrary")
+	
+	if (any(is.na(ov))) stop("the subset is not entirely contained in the given genomic range")
+	if (any((start(subsetgr)-start(pugr)[ov]) %% (1/countsPerBase) != 0)) stop("the subset of the grange is not a subset of the bins") 
+	cutstarts <- pu$start[ov] + (start(subsetgr) - start(pugr)[ov])*countsPerBase
+	newwidths <- width(subsetgr)*countsPerBase
+	
+	if (strand) return( list(start=cutstarts, width=newwidths, strand=xnor(strandToBool(strand(subsetgr)) , strandToBool(strand(pugr)[ov]))))
+	else return( list(start=cutstarts, width=newwidths) )
+}
+
+
+#these two functions are not exported and not documented.
+#they basically query the pileup object in a certain index range.
+subsetPileup <- function(pu, idx, start, width, strand=NULL){
+	if (length(width)==1) width <- rep(width, length(idx))
+	if (is.null(strand)) strand <- rep(TRUE, length(idx))
+	subsetCounts(pu$counts, start + pu$starts[idx], width, strand)
+}
+
+countInPileup <- function(pu, idx, start, width){
+	if (length(width)==1) width <- rep(width, length(idx))
+	countInSubset(pu$counts, start + pu$starts[idx], width)
+}
+

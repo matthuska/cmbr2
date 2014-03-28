@@ -386,3 +386,66 @@ void loop(std::string bampath){
 	bam_destroy1(read);
 	bfile.close();
 }
+
+// [[Rcpp::export]]
+Rcpp::List subsetCounts(Rcpp::IntegerVector counts, Rcpp::IntegerVector start, Rcpp::IntegerVector width, Rcpp::LogicalVector strand){
+	if (start.length() != width.length() || start.length() != strand.length()) Rcpp::stop("provided vectors have different lengths...");
+	int nr = start.length();
+	int len = counts.length();
+	int tot = 0;
+	int* S = start.begin(); int* W = width.begin();
+	for (int i = 0; i < nr; ++i){
+		int s = S[i] - 1;
+		int w = W[i]; 
+		if (s < 0) Rcpp::stop("negative start positions are invalid");
+		if (s + w > len) Rcpp::stop("range exceeds the lengths of the counts vector");
+		tot += w;
+	}
+	
+	Rcpp::IntegerVector res(tot); 
+	Rcpp::IntegerVector nstart(nr);
+	Rcpp::IntegerVector nend(nr);
+	int* R = res.begin(); int* C = counts.begin(); int* ST = strand.begin();
+	int* NS = nstart.begin(); int* NE = nend.begin();
+	int currpos = 0;
+	for (int i = 0; i < nr; ++i){
+		NS[i] = currpos + 1;
+		int w = W[i];
+		if (ST[i]) std::copy(C + S[i]-1, C + S[i]-1 + w, R + currpos);
+		else std::reverse_copy(C + S[i]-1, C + S[i]-1 + w, R + currpos);
+		currpos += w;
+		NE[i] = currpos;
+	}
+	return List::create(_("counts")=res, _("starts")=nstart, _("ends")=nend);
+}
+
+//summing entries of a int vector 
+//with unrolled for loop for speed
+static inline int sum(int* v, int len){
+	int sum = 0;
+	int m = len % 6;
+	for (int i = 0; i < m; ++i){ sum += v[i]; }
+	for (int i = m; i < len; i += 6){
+		sum += v[i] + v[i+1] + v[i+2] + v[i+3] + v[i+4] + v[i+5];
+	}
+	return sum;
+}
+
+// [[Rcpp::export]]
+Rcpp::IntegerVector countInSubset(Rcpp::IntegerVector counts, Rcpp::IntegerVector start, Rcpp::IntegerVector width){
+	if (start.length() != width.length()) Rcpp::stop("provided vectors have different lengths...");
+	int nr = start.length();
+	int len = counts.length();
+	Rcpp::IntegerVector res(nr); 
+	int* R = res.begin(); int* C = counts.begin();
+	int* S = start.begin(); int* W = width.begin();
+	for (int i = 0; i < nr; ++i){
+		int s = S[i] - 1;
+		int w = W[i]; 
+		if (s < 0) Rcpp::stop("negative start positions are invalid");
+		if (s + w > len) Rcpp::stop("range exceeds the lengths of the counts vector");
+		R[i] = sum(C + s, w);
+	}
+	
+	return res;
+}

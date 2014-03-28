@@ -108,7 +108,7 @@ addLetter <- function (letters, which, x.pos, y.pos, ht, wt)
 }
 
 
-baseSeqLogo <- function (pwm, ic.scale = TRUE, xlab = "Position", ...) 
+baseSeqLogo <- function (pwm, ic.scale = TRUE, xlab = "Position", ylim = NULL, ...) 
 {
 	if (class(pwm) == "data.frame") {
 		pwm <- as.matrix(pwm)
@@ -124,9 +124,9 @@ baseSeqLogo <- function (pwm, ic.scale = TRUE, xlab = "Position", ...)
 	letters <- list(x = NULL, y = NULL, col = NULL)
 	npos <- ncol(pwm)
 	if (ic.scale) {
-		ylim <- 2
 		ylab <- "bits"
 		facs <- pwm2ic(pwm)
+		if (is.null(ylim)) ylim <- max(facs)
 	}
 	else {
 		ylim <- 1

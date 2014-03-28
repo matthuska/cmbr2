@@ -9,6 +9,9 @@ Description: More about what it does (maybe more than one line)
 License: What Licence is it under ?
 Depends:
     Rcpp (>= 0.10.6)
+Imports:
+    IRanges,
+    GenomicRanges
 LinkingTo: Rcpp
 Collate:
     'RcppExports.R'

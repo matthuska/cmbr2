@@ -9,3 +9,11 @@ coverage_core <- function(gr, bampath, mapqual = 0L, maxgap = 16385L) {
     .Call('bamsignals_coverage_core', PACKAGE = 'bamsignals', gr, bampath, mapqual, maxgap)
 }
 
+subsetCounts <- function(counts, start, width, strand) {
+    .Call('bamsignals_subsetCounts', PACKAGE = 'bamsignals', counts, start, width, strand)
+}
+
+countInSubset <- function(counts, start, width) {
+    .Call('bamsignals_countInSubset', PACKAGE = 'bamsignals', counts, start, width)
+}
+
