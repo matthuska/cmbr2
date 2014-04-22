@@ -287,36 +287,36 @@ makeGffAttributes <- function(df, cols=NULL) {
 }
 
 countBamInGRanges <- function(bam.file, granges, min.mapq=NULL, read.width=1) {
-  require(GenomicRanges)
-  require(Rsamtools)
+      require(GenomicRanges)
+      require(Rsamtools)
 
-  rds.counts <- numeric(length(granges))
-  seq.names <- as.character(unique(seqnames(granges)))
-  seq.names.in.bam <- names(scanBamHeader(bam.file)[[1]]$targets)
-  for (seq.name in seq.names) {
-    if (seq.name %in% seq.names.in.bam) {
-      print( paste("[", Sys.time(),"] Started processing count on chromosome", seq.name, "of file", bam.file) )
-      granges.subset <- granges[seqnames(granges)==seq.name]
-      strand(granges.subset) <- "*"
-      rds <- scanBam(bam.file,param=ScanBamParam(what=c("pos","mapq"),which=range(granges.subset)))
-      if (!is.null(min.mapq)) {
-	mapq.test <- rds[[1]]$mapq >= min.mapq & !is.na(rds[[1]]$mapq)
-      } else {
-	mapq.test = rep(T, length(rds[[1]]$mapq))
+      rds.counts <- numeric(length(granges))
+      seq.names <- as.character(unique(seqnames(granges)))
+      seq.names.in.bam <- names(scanBamHeader(bam.file)[[1]]$targets)
+      for (seq.name in seq.names) {
+            if (seq.name %in% seq.names.in.bam) {
+                  print( paste("[", Sys.time(),"] Started processing count on chromosome", seq.name, "of file", bam.file) )
+                  granges.subset <- granges[seqnames(granges)==seq.name]
+                  strand(granges.subset) <- "*"
+                  rds <- scanBam(bam.file,param=ScanBamParam(what=c("pos","mapq"),which=range(granges.subset)))
+                  if (!is.null(min.mapq)) {
+                        mapq.test <- rds[[1]]$mapq >= min.mapq & !is.na(rds[[1]]$mapq)
+                  } else {
+                        mapq.test = rep(T, length(rds[[1]]$mapq))
+                  }
+                  if (sum(mapq.test) > 0) {
+                        rds.ranges <- GRanges(seq.name,IRanges(start=rds[[1]]$pos[mapq.test],width=read.width))
+                        rds.counts.seq.name <- countOverlaps(granges.subset,rds.ranges)
+                        rds.counts[as.logical(seqnames(granges)==seq.name)] <- rds.counts.seq.name
+                  } else {
+                        rds.counts[as.logical(seqnames(granges)==seq.name)] <- 0
+                  }
+            } else {
+                  rds.counts[as.logical(seqnames(granges)==seq.name)] <- 0
+            }
+            print( paste("[", Sys.time(),"] Finished processing count on chromosome", seq.name, "of file", bam.file) )
       }
-      if (sum(mapq.test) > 0) {
-	rds.ranges <- GRanges(seq.name,IRanges(start=rds[[1]]$pos[mapq.test],width=read.width))
-	rds.counts.seq.name <- countOverlaps(granges.subset,rds.ranges)
-	rds.counts[as.logical(seqnames(granges)==seq.name)] <- rds.counts.seq.name
-      } else {
-	rds.counts[as.logical(seqnames(granges)==seq.name)] <- 0
-      }
-    } else {
-      rds.counts[as.logical(seqnames(granges)==seq.name)] <- 0
-    }
-    print( paste("[", Sys.time(),"] Finished processing count on chromosome", seq.name, "of file", bam.file) )
-  }
-  rds.counts
+      rds.counts
 }
 #' Using countBam() is fast but a little messy: if you have overlapping ranges
 #' then you'll get duplicate counts (apparently). However if your ranges are
@@ -342,93 +342,96 @@ countBamInGRanges <- function(bam.file, granges, min.mapq=NULL, read.width=1) {
 #' minus strand. We could enhance counting by ruling out contigs mapping with
 #' their 5'-end out of regions.
 #'
+#' TODO: countBam does count reads for a GenomicRange even if 5' end is outside 
+#' of region.
+#'
 #' TODO: We could incorporate a shift of the contigs 70 bp towards the fragment
 #' center and outrule contigs mapping outside of the granges regions.
 countBamInGRangesFast <- function(bam.file, granges, verbose=FALSE, strand.specific=F, min.mapq=NA) {
-  require(GenomicRanges)
-  require(Rsamtools)
+      require(GenomicRanges)
+      require(Rsamtools)
 
-  if ( strand.specific ) {
+      if ( strand.specific ) {
 
-    if (verbose)
-      cat("[", format(Sys.time()), "] Started reading counts for GenomicRanges for", bam.file, "with strand specificity.\n")
+            if (verbose)
+                  cat("[", format(Sys.time()), "] Started reading counts for GenomicRanges for", bam.file, "with strand specificity.\n")
 
-    if ( is.na(min.mapq) ) {
+            if ( is.na(min.mapq) ) {
 
-      fields <- c("pos")
-      cnts.p <- countBam(bam.file,param=ScanBamParam(flag=scanBamFlag(isMinusStrand=F), what=fields, which=granges[ strand(granges) == "+" ]))
-      cnts.m <- countBam(bam.file,param=ScanBamParam(flag=scanBamFlag(isMinusStrand=T), what=fields, which=granges[ strand(granges) == "-" ]))
-      cnts.u <- countBam(bam.file,param=ScanBamParam(what=fields, which=granges[ strand(granges) == "*" ]))
+                  fields <- c("pos")
+                  cnts.p <- countBam(bam.file,param=ScanBamParam(flag=scanBamFlag(isMinusStrand=F), what=fields, which=granges[ strand(granges) == "+" ]))
+                  cnts.m <- countBam(bam.file,param=ScanBamParam(flag=scanBamFlag(isMinusStrand=T), what=fields, which=granges[ strand(granges) == "-" ]))
+                  cnts.u <- countBam(bam.file,param=ScanBamParam(what=fields, which=granges[ strand(granges) == "*" ]))
 
-    } else {
+            } else {
 
-      fields <- c("pos", "mapq")
-      rds.p <- scanBam(bam.file,param=ScanBamParam(flag=scanBamFlag(isMinusStrand=F), what=fields, which=granges[ strand(granges) == "+" ]))
-      rds.m <- scanBam(bam.file,param=ScanBamParam(flag=scanBamFlag(isMinusStrand=T), what=fields, which=granges[ strand(granges) == "-" ]))
-      rds.u <- scanBam(bam.file,param=ScanBamParam(what=fields, which=granges[ strand(granges) == "*" ]))
+                  fields <- c("pos", "mapq")
+                  rds.p <- scanBam(bam.file,param=ScanBamParam(flag=scanBamFlag(isMinusStrand=F), what=fields, which=granges[ strand(granges) == "+" ]))
+                  rds.m <- scanBam(bam.file,param=ScanBamParam(flag=scanBamFlag(isMinusStrand=T), what=fields, which=granges[ strand(granges) == "-" ]))
+                  rds.u <- scanBam(bam.file,param=ScanBamParam(what=fields, which=granges[ strand(granges) == "*" ]))
 
-      if (verbose)
-	cat("[", format(Sys.time()), "] Filtering reads for minimum mapping quality", min.mapq, ".\n")
-      cnts.p  <- data.frame("records"=sapply(rds.p, function( grange ) { length( which(grange$mapq >= min.mapq | is.na(grange$mapq)) ) }))
-      cnts.m  <- data.frame("records"=sapply(rds.m, function( grange ) { length( which(grange$mapq >= min.mapq | is.na(grange$mapq)) ) }))
-      cnts.u  <- data.frame("records"=sapply(rds.u, function( grange ) { length( which(grange$mapq >= min.mapq | is.na(grange$mapq)) ) }))
+                  if (verbose)
+                        cat("[", format(Sys.time()), "] Filtering reads for minimum mapping quality", min.mapq, ".\n")
+                  cnts.p  <- data.frame("records"=sapply(rds.p, function( grange ) { length( which(grange$mapq >= min.mapq | is.na(grange$mapq)) ) }))
+                  cnts.m  <- data.frame("records"=sapply(rds.m, function( grange ) { length( which(grange$mapq >= min.mapq | is.na(grange$mapq)) ) }))
+                  cnts.u  <- data.frame("records"=sapply(rds.u, function( grange ) { length( which(grange$mapq >= min.mapq | is.na(grange$mapq)) ) }))
 
-      rm(list=c("rds.p", "rds.m", "rds.u")) # We do not need this anymore
+                  rm(list=c("rds.p", "rds.m", "rds.u")) # We do not need this anymore
 
-    }
+            }
 
-    if (verbose)
-      cat("[", format(Sys.time()), "] Finished reading counts for GenomicRanges for", bam.file, ".\n")
+            if (verbose)
+                  cat("[", format(Sys.time()), "] Finished reading counts for GenomicRanges for", bam.file, ".\n")
 
-    # order the coverage matrix in the same way as the granges argument (helmuth 2013-02-19)
-    if (verbose)
-      cat("[", format(Sys.time()), "] Reordering count vector to order in supplied GenomicRanges for", bam.file, ".\n")
-    cnts = rep(0, length(granges))
-    values(granges)["OriginalOrder"]  <- 1:length(granges)
-    cntVals.p <- unlist(split(values(granges[ strand(granges) == "+" ])["OriginalOrder"], seqnames(granges[ strand(granges) == "+" ])))
-    cnts[ which( strand(granges) == "+" )] <- cnts.p[order(cntVals.p[,1]), "records" ]
-    cntVals.m <- unlist(split(values(granges[ strand(granges) == "-" ])["OriginalOrder"], seqnames(granges[ strand(granges) == "-" ])))
-    cnts[ which( strand(granges) == "-" )] <- cnts.m[order(cntVals.m[,1]), "records" ]
-    cntVals.u <- unlist(split(values(granges[ strand(granges) == "*" ])["OriginalOrder"], seqnames(granges[ strand(granges) == "*" ])))
-    cnts[ which( strand(granges) == "*" )] <- cnts.u[order(cntVals.u[,1]), "records" ]
+            # order the coverage matrix in the same way as the granges argument (helmuth 2013-02-19)
+            if (verbose)
+                  cat("[", format(Sys.time()), "] Reordering count vector to order in supplied GenomicRanges for", bam.file, ".\n")
+            cnts = rep(0, length(granges))
+            values(granges)["OriginalOrder"]  <- 1:length(granges)
+            cntVals.p <- unlist(split(values(granges[ strand(granges) == "+" ])["OriginalOrder"], seqnames(granges[ strand(granges) == "+" ])))
+            cnts[ which( strand(granges) == "+" )] <- cnts.p[order(cntVals.p[,1]), "records" ]
+            cntVals.m <- unlist(split(values(granges[ strand(granges) == "-" ])["OriginalOrder"], seqnames(granges[ strand(granges) == "-" ])))
+            cnts[ which( strand(granges) == "-" )] <- cnts.m[order(cntVals.m[,1]), "records" ]
+            cntVals.u <- unlist(split(values(granges[ strand(granges) == "*" ])["OriginalOrder"], seqnames(granges[ strand(granges) == "*" ])))
+            cnts[ which( strand(granges) == "*" )] <- cnts.u[order(cntVals.u[,1]), "records" ]
 
-  } else {
+      } else {
 
-    if (verbose)
-      cat("[", format(Sys.time()), "] Started reading counts for GenomicRanges for", bam.file, "with no strand specificity.\n")
+            if (verbose)
+                  cat("[", format(Sys.time()), "] Started reading counts for GenomicRanges for", bam.file, "with no strand specificity.\n")
 
-    if ( is.na(min.mapq) ) {
+            if ( is.na(min.mapq) ) {
 
-      fields <- c("pos")
-      cnts <- countBam(bam.file,param=ScanBamParam(what=fields,which=granges))
+                  fields <- c("pos")
+                  cnts <- countBam(bam.file,param=ScanBamParam(what=fields,which=granges))
 
-    } else {
+            } else {
 
-      fields <- c("pos", "mapq")
-      rds <- scanBam(bam.file,param=ScanBamParam(what=fields, which=granges))
+                  fields <- c("pos", "mapq")
+                  rds <- scanBam(bam.file,param=ScanBamParam(what=fields, which=granges))
 
-      if (verbose)
-	cat("[", format(Sys.time()), "] Filtering reads for minimum mapping quality", min.mapq, ".\n")
-      cnts  <- data.frame("records"=sapply(rds, function( grange ) { length( which(grange$mapq >= min.mapq | is.na(grange$mapq)) ) }))
+                  if (verbose)
+                        cat("[", format(Sys.time()), "] Filtering reads for minimum mapping quality", min.mapq, ".\n")
+                  cnts  <- data.frame("records"=sapply(rds, function( grange ) { length( which(grange$mapq >= min.mapq | is.na(grange$mapq)) ) }))
 
-      rm(list=c("rds")) # We do not need this anymore
+                  rm(list=c("rds")) # We do not need this anymore
 
-    }
+            }
 
-    if (verbose)
-      cat("[", format(Sys.time()), "] Finished reading counts for GenomicRanges for", bam.file, "\n")
+            if (verbose)
+                  cat("[", format(Sys.time()), "] Finished reading counts for GenomicRanges for", bam.file, "\n")
 
-    # order the coverage matrix in the same way as the granges argument (helmuth 2013-02-19)
-    if (verbose)
-      cat("[", format(Sys.time()), "] Reordering count vector to order in supplied GenomicRanges for", bam.file, ".\n")
+            # order the coverage matrix in the same way as the granges argument (helmuth 2013-02-19)
+            if (verbose)
+                  cat("[", format(Sys.time()), "] Reordering count vector to order in supplied GenomicRanges for", bam.file, ".\n")
 
-    values(granges)["OriginalOrder"]  <- 1:length(granges)
-    cntVals <- unlist(split(values(granges)["OriginalOrder"], seqnames(granges)))
-    cnts  <- cnts[order(cntVals[,1]), "records"]
+            values(granges)["OriginalOrder"]  <- 1:length(granges)
+            cntVals <- unlist(split(values(granges)["OriginalOrder"], seqnames(granges)))
+            cnts  <- cnts[order(cntVals[,1]), "records"]
 
-  }
+      }
 
-  invisible(cnts)
+      invisible(cnts)
 }
 #' Even faster implementation using the bamsignals package
 #'

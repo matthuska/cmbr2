@@ -599,7 +599,7 @@ scatter.classes <- function( x, y, main="", xlab=expression(paste(plain(log)[10]
   par(old.par)
 }
 
-reducedSmoothScatter <- function( x, y, quant=.95, ...) {
+reducedSmoothScatter <- function( x, y, quant=.99, colramp=tim.colors, ...) {
   selected = which( x < quantile(x, quant) & y < quantile(y, quant) )
-  smoothScatter( x[ selected ], y[ selected ], ...)
+  smoothScatter( x[ selected ], y[ selected ], colramp=colramp, ...)
 }

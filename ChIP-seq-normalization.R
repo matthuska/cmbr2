@@ -54,7 +54,6 @@ normalizeList <- function( counts, control.vector, method="diff", mc.cores=4 ) {
 			      r = (cl + 1) * median( (signal + 1) /  (cl + 1 ))
 			      x = (signal+1) / r 
 
-
 			    } else if (method == "median2") {
 			      # helmuth 2013-09-04: Alternative method using less pseudo counts
 			      r = cl * median( (signal + 1) /  (cl + 1 ))
