@@ -22,7 +22,10 @@ inline int fiveprimepos(const bam1_t *b, int strand){
 	}
 }
 
-
+//helmuth 2014-03-31
+inline bool isProperFirstInPair(const bam1_t *b){ // take only reads with flags 83 (1st on -strand in proper pair) and 99 (1st on +strand in proper pair)
+    return ( ((b->core).flag & BAM_FPROPER_PAIR) && ((b->core).flag & BAM_FREAD1) );
+}
 
 typedef NumericVector::iterator Idouble;
 typedef IntegerVector::iterator Iint;
@@ -210,13 +213,13 @@ static bool sortByStart(const TRegion& a, const TRegion& b){
 //void pileup(TRegion&, const bam1_t*, int, int)
 template <class TRegion, class TPileup>
 static void overlapAndPileup(Bamfile& bfile, std::vector<TRegion>& ranges, int mapqual, int shift, TPileup& pileupper, int maxgap){
-	
+
 	//sorting intervals according to start coordinate (and ref id of course)
 	std::sort(ranges.begin(), ranges.end(), sortByStart<TRegion>);
 	
 	//trade-off between querying a new region and processing unnecessary reads
-	
 	const int MAX_GAP = maxgap;
+
 	//variables processed, chunk_start, chunk_end, curr_range and range are indices for the vector ranges
 	unsigned int processed = 0;
 	bam1_t* read; read = bam_init1();
@@ -247,7 +250,7 @@ static void overlapAndPileup(Bamfile& bfile, std::vector<TRegion>& ranges, int m
 				int r_start = (read->core).pos;
 				//skip non-overlapping regions at the beginning
 				while (curr_range < chunk_end && r_start >= ranges[curr_range].end() + shift) ++curr_range;
-				//should never happen, unless the last reads returned by the iterator no not overlap with the queried interval
+				//should never happen, unless the last reads returned by the iterator do not overlap with the queried interval
 				if (curr_range == chunk_end) break; 
 				
 				int r_end = bam_calend(&(read->core), bam1_cigar(read)) -1;
@@ -266,12 +269,89 @@ static void overlapAndPileup(Bamfile& bfile, std::vector<TRegion>& ranges, int m
 	bam_destroy1(read);
 }
 
+//helmuth 2014-04-08: PairedEnd implementation of overlapAndPileupPairedEnd. This is used by pileup_core() and coverage_core()
+//- only counts one read in pair (reference strand)
+//
+//TODO: Should we also implement an argument for minimum fragment length?
+template <class TRegion, class TPileup>
+static void overlapAndPileupPairedEnd(Bamfile& bfile, std::vector<TRegion>& ranges, int mapqual, int shift, TPileup& pileupper, int maxgap, bool pe_mid, int maxfraglength){
+
+	//sorting intervals according to start coordinate (and ref id of course)
+	std::sort(ranges.begin(), ranges.end(), sortByStart<TRegion>);
+	
+	//trade-off between querying a new region and processing unnecessary reads
+	const int MAX_GAP = maxgap;
+
+	int window = shift;
+	//if we do paired end midpoint counting we enlarge the range by maxfraglength to get all fragments desired
+	if (pe_mid)
+	 window = shift + maxfraglength;
+
+	//variables processed, chunk_start, chunk_end, curr_range and range are indices for the vector ranges
+	unsigned int processed = 0;
+	bam1_t* read; read = bam_init1();
+	//process one chunk of nearby ranges at a time
+	while (processed < ranges.size()){
+		unsigned int chunk_start = processed;
+		int rid = ranges[chunk_start].rid;
+		int start = ranges[chunk_start].loc - window;
+		//find out how many regions to process together
+		unsigned int chunk_end = chunk_start+1;
+		for (; chunk_end < ranges.size(); ++chunk_end){
+			if (ranges[chunk_end].rid != rid || ranges[chunk_end].loc - ranges[chunk_end-1].end() - 2*window > MAX_GAP){
+				break;
+			}
+		}
+		int end = ranges[chunk_end-1].end() + window;
+		//perform query
+		//Rcout << "QUERY: " << rid << ":" << start << "-" << end << " (chunks: " << chunk_start << ":" << chunk_end << ")" << std::endl;
+		
+		bam_iter_t iter = bam_iter_query(bfile.idx, rid, start, end); 
+		//all ranges behind curr_range should not overlap with the next reads anymore
+		unsigned int curr_range = chunk_start;
+		//loop through the reads
+		while (bam_iter_read((bfile.in)->x.bam, iter, read) >= 0){
+
+		    if ( isProperFirstInPair( read ) && ( (read->core).qual >= mapqual) ){ //only take first read in proper pair mapping + mapq threshold
+			int r_start = (read->core).pos;
+			//skip non-overlapping regions at the beginning
+			while (curr_range < chunk_end && r_start >= ranges[curr_range].end() + window) ++curr_range;
+			//should never happen, unless the last reads returned by the iterator do not overlap with the queried interval
+			if (curr_range == chunk_end) break; 
+
+			int r_end = bam_calend(&(read->core), bam1_cigar(read)) -1;
+			int r_fraglength = abs((read->core).isize);
+			int r_shift = shift;
+
+			//if we want to count midpoints of the fragments we have to change r_end
+			if (pe_mid) {
+			    r_shift = r_shift + r_fraglength/2; //move counting position relative to fragment middle point
+			}
+
+			//temp
+			//Rcout << "\t FLAG: " << (read->core).flag << "___" << (read->core).tid << ":" << r_start << "-" << r_end << "; ReadLength:" << (read->core).l_qseq << "; MPOS:" << (read->core).mpos << "; ISIZE:" << r_fraglength << std::endl;
+
+			for (unsigned int range = curr_range; range < chunk_end && ranges[range].loc - window <= r_end; ++range){
+			    //Rcout << "Range No " << range << " with " << ranges[range].loc << "-" << ranges[range].end() << ", strand " << ranges[range].strand << std::endl;
+			    pileupper.pileupPairedEnd(ranges[range], read, r_start, r_end, r_shift);
+			}
+		    }
+
+		}
+		
+		bam_iter_destroy(iter);
+		processed = chunk_end;
+	}
+	bam_destroy1(read);
+}
+
 class Coverager{
 	public:
 	
 	void pileup(GArray& range, const bam1_t* read, int start, int end){
 		//check if the read really overlaps
 		if (start < range.end() && end >= range.loc){
+		    	//Rcout << "-> took read " << std::endl;
 			if (range.strand >= 0){
 				//range on the reference strand
 				int pos = start-range.loc;
@@ -291,13 +371,30 @@ class Coverager{
 			}
 		}
 	}
+
+	//helmuth 2014-04-08: "shift" argument added. Paired End extension for varying shift sizes. 
+	//                     It's not used in this method but incorporated for consistency with 
+	//                     TPileup::Pileupper.
+	void pileupPairedEnd(GArray& range, const bam1_t* read, int start, int end, int shift){
+		//Construct the region of the fragment overlap
+		int isize = (read->core).isize;
+		bool negstrand = isNegStrand(read);
+		if (negstrand && isize < 0) {        //-strand read: only calculate if isize is meaningful, otherwise fall back to given start
+		    start = end + isize;
+		    //Rcout << "-FRAG: " << start << "-" << end << " ( pos = " << (read->core).pos << ", read_end = " << bam_calend(&(read->core), bam1_cigar(read)) << " )" <<  std::endl;
+		} else if (!negstrand && isize > 0) { //+strand read: only calculate if isize is meaningful, otherwise fall back to given end (i.e. bam.c::bam_calend output)
+		    end   = start + isize - 1;
+		    //Rcout << "+FRAG: " << start << "-" << end << " ( pos = " << (read->core).pos << ", read_end = " << bam_calend(&(read->core), bam1_cigar(read)) << " )" <<  std::endl;
+		}
+		pileup( range, read, start, end);
+	}
 };
 
 class Pileupper{
 	public:
 	
 	int binsize;
-	int shift;
+	int shift; 
 	bool ss;
 	
 	Pileupper(int abinsize, int ashift, bool ass){
@@ -310,10 +407,30 @@ class Pileupper{
 	//ss=false, ignoreRegionStrand, binsize=1
 	//and storing in range extra information: range.loc - shift and range.loc + shift
 	//this could be probably done by templating this class (so everything would be written just once).
+	//
 	void pileup(GArray& range, const bam1_t* read, int start, int end){
 		bool negstrand = isNegStrand(read);
 		//relative position from the start of the range
-		int pos = negstrand?end - range.loc - shift:start + shift - range.loc;
+		int pos = negstrand ? end - range.loc - shift : start + shift - range.loc;
+		//check overlap with the region
+		if (pos < 0 || pos >= range.len) return;
+		//strand of the region defines direction and sense and antisense
+		if (range.strand < 0){
+			pos = range.len - pos - 1;
+			negstrand = !negstrand;
+		}
+		//even positions of the array are sense-reads, odd are antisense
+		if (ss){ ++range.array[2*(pos/binsize) + (negstrand?1:0)]; }
+		else {++range.array[pos/binsize]; } 
+	}
+
+	//helmuth 2014-04-08: "shift" argument added. Paired End extension for varying shift sizes. 
+	//                     It's not used in this method but incorporated for consistency with 
+	//                     TPileup.
+	void pileupPairedEnd(GArray& range, const bam1_t* read, int start, int end, int r_shift){
+		bool negstrand = isNegStrand(read);
+		//relative position from the start of the range
+		int pos = negstrand ? end - range.loc - r_shift : start + r_shift - range.loc;
 		//check overlap with the region
 		if (pos < 0 || pos >= range.len) return;
 		//strand of the region defines direction and sense and antisense
@@ -328,7 +445,7 @@ class Pileupper{
 };
 
 // [[Rcpp::export]]
-List pileup_core(RObject gr, std::string bampath, int mapqual=0, int binsize=1, int shift=0, bool ss=false, int maxgap=16385){
+List pileup_core(RObject gr, std::string bampath, int mapqual=0, int binsize=1, int shift=0, bool ss=false, bool pe=false, bool pe_mid=false, int maxfraglength=1000, int maxgap=16385){
 	std::vector<GArray> ranges;
 	//opening bamfile and index
 	Bamfile bfile(bampath);
@@ -338,7 +455,10 @@ List pileup_core(RObject gr, std::string bampath, int mapqual=0, int binsize=1, 
 	List ret = allocateAndDistributeMemory(ranges, binsize, ss);
 	//pileup
 	Pileupper p(binsize, shift, ss);
-	overlapAndPileup(bfile, ranges, mapqual, shift, p, maxgap);
+	if (pe) //use PairedEnd routine
+	 overlapAndPileupPairedEnd(bfile, ranges, mapqual, shift, p, maxgap, pe_mid, maxfraglength);
+	else //use SingleEnd routine
+	 overlapAndPileup(bfile, ranges, mapqual, shift, p, maxgap);
 	//close bamfile and index
 	bfile.close();
 	
@@ -346,7 +466,7 @@ List pileup_core(RObject gr, std::string bampath, int mapqual=0, int binsize=1, 
 }
 
 // [[Rcpp::export]]
-List coverage_core(RObject gr, std::string bampath, int mapqual=0, int maxgap=16385){
+List coverage_core(RObject gr, std::string bampath, int mapqual=0, bool pe=false, int maxfraglength=1000, int maxgap=16385){
 	std::vector<GArray> ranges;
 	//opening bamfile and index
 	Bamfile bfile(bampath);
@@ -356,7 +476,10 @@ List coverage_core(RObject gr, std::string bampath, int mapqual=0, int maxgap=16
 	List ret = allocateAndDistributeMemory(ranges, 1, false);
 	//pileup
 	Coverager c;
-	overlapAndPileup(bfile, ranges, mapqual, 0, c, maxgap);
+	if (pe)
+	 overlapAndPileupPairedEnd(bfile, ranges, mapqual, 0, c, maxgap, true, maxfraglength); //we set pe.mid=true to grasp all regions in fragment size
+	else
+	 overlapAndPileup(bfile, ranges, mapqual, 0, c, maxgap);
 	//close bamfile and index
 	bfile.close();
 	//do cumsum on all the ranges

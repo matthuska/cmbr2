@@ -9,6 +9,7 @@
 #' @import GenomicRanges
 #' @docType package
 #' @author Alessandro Mammana \email{mammana@@molgen.mpg.de}
+#' @author Johannes Helmuth \email{helmuth@@molgen.mpg.de}
 #' @useDynLib bamsignals
 NULL
 #' Pileup reads from a bam file.
@@ -36,6 +37,16 @@ NULL
 #' if the profile is strand-specific one dimension will correspond to sense
 #' and anti-sense strand, if the ranges have all the same width one dimension
 #' will correspond to the range number.
+#' @param paired.end a logical value indicating whether the bampath contains paired-end 
+#' sequencing output. In this case, only first reads in proper pairs are considered 
+#' (FLAG 66).
+#' @param paired.end.midpoint a logical value indicating whether the fragment middle 
+#' points of each fragment should be counted. Therefore it uses the tlen information from
+#' the given bam file (MidPoint = fragment_start + int( abs(tlen) / 2) )). For even tlen, 
+#' the given midpoint is the round half down real midpoint.
+#' @param paired.end.max.frag.length an integer indicating which fragments should be 
+#' considered in paired-end sequencing data. Default value of 1,000 bases is generally
+#' a good pick.
 #' @return a list with the following arguments:
 #' 	\item{counts}{the vector containing the read counts. This will be formatted
 #' 	into a matrix or an array depending on whether the profile is strand-specific
@@ -47,8 +58,8 @@ NULL
 #'		\item{format}{This element is present if pu$counts is formatted
 #' 	differently than a simple vector and it describes the formatting.}
 #' @export
-pileup <- function(gr, bampath, binsize=1, mapqual=0, shift=0, ss=F, format=T){
-	printStupidSentence()
+pileup <- function(gr, bampath, binsize=1, mapqual=0, shift=0, ss=F, format=T, paired.end=F, paired.end.midpoint=F, paired.end.max.frag.length=1000){
+	#printStupidSentence()
 	if (binsize < 1){
 		stop("provide a binsize greater or equal to 1")
 	} else if (binsize > 1 && any((width(gr) %% binsize) != 0)){
@@ -56,7 +67,7 @@ pileup <- function(gr, bampath, binsize=1, mapqual=0, shift=0, ss=F, format=T){
 		"some bins will correspond to less than binsize basepairs"))
 	}
 
-	pu <- pileup_core(gr, bampath, mapqual, binsize, shift, ss)
+	pu <- pileup_core(gr, bampath, mapqual, binsize, shift, ss, paired.end, paired.end.midpoint, paired.end.max.frag.length)
 	
 	if (format){
 		if (all(width(gr)==width(gr[1]))){
@@ -93,6 +104,12 @@ pileup <- function(gr, bampath, binsize=1, mapqual=0, shift=0, ss=F, format=T){
 #' with the highest possible mapping quality will be considered.
 #' @param format if the ranges have all the same width this method
 #' will return a matrix.
+#' @param paired.end a logical value indicating whether the bampath contains paired-end 
+#' sequencing output. In this case, only first reads in proper pairs are considered 
+#' (FLAG 66).
+#' @param paired.end.max.frag.length an integer indicating which fragments should be 
+#' considered in paired-end sequencing data. Default value of 1,000 bases is generally
+#' a good pick.
 #' @return a list with the following arguments:
 #' 	\item{counts}{the vector containing the read counts. This will be formatted
 #' 	into a matrix depending on whether the ranges have all the same length.}
@@ -103,9 +120,9 @@ pileup <- function(gr, bampath, binsize=1, mapqual=0, shift=0, ss=F, format=T){
 #'		\item{format} This element is present if pu$counts is formatted
 #' 	differently than a simple vector and it describes the formatting.
 #' @export
-depth <- function(gr, bampath, mapqual=0, format=T){
-	printStupidSentence()
-	pu <- coverage_core(gr, bampath, mapqual);
+depth <- function(gr, bampath, mapqual=0, format=T, paired.end=F, paired.end.max.frag.length=1000){
+	#printStupidSentence()
+	pu <- coverage_core(gr, bampath, mapqual, paired.end, paired.end.max.frag.length);
 	if (format && all(width(gr)==width(gr[1]))){
 		locus_width <- width(gr[1])
 		pu$counts <- matrix(pu$counts, ncol=length(gr), nrow=locus_width, byrow=F)
@@ -129,11 +146,21 @@ depth <- function(gr, bampath, mapqual=0, format=T){
 #' be handy in the analysis of chip-seq data.
 #' @param ss produce a strand-specific count or ignore the strand of the read. Strand-specific counts
 #' will be returned in a 2*length(gr) matrix.
+#' @param paired.end a logical value indicating whether the bampath contains paired-end 
+#' sequencing output. In this case, only first reads in proper pairs are considered 
+#' (FLAG 66).
+#' @param paired.end.midpoint a logical value indicating whether the fragment middle 
+#' points of each fragment should be counted. Therefore it uses the tlen information from
+#' the given bam file (MidPoint = fragment_start + int( abs(tlen) / 2) )). For even tlen, 
+#' the given midpoint is the round half down real midpoint.
+#' @param paired.end.max.frag.length an integer indicating which fragments should be 
+#' considered in paired-end sequencing data. Default value of 1,000 bases is generally
+#' a good pick.
 #' @return a vector or a matrix with the counts
 #' @export
-count <- function(gr, bampath, mapqual=0, shift=0, ss=F){
-	printStupidSentence()
-	pu <- pileup_core(gr, bampath, mapqual, max(width(gr)), shift, ss)
+count <- function(gr, bampath, mapqual=0, shift=0, ss=F, paired.end=F, paired.end.midpoint=F, paired.end.max.frag.length=1000){
+	#printStupidSentence()
+	pu <- pileup_core(gr, bampath, mapqual, max(width(gr)), shift, ss, paired.end, paired.end.midpoint, paired.end.max.frag.length)
 	if (ss) {
 		dim(pu$counts) <- c(2, length(gr))
 		rownames(pu$counts) <- c("sense", "antisense")

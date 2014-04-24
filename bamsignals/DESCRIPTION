@@ -1,18 +1,18 @@
 Package: bamsignals
 Type: Package
-Title: What the package does (short line)
-Version: 1.0
-Date: 2013-11-20
-Author: Who wrote it
-Maintainer: Who to complain to <yourfault@somewhere.net>
-Description: More about what it does (maybe more than one line)
-License: What Licence is it under ?
+Title: Do set operations on a bam file for specified GenomicRanges object.
+Version: 1.1
+Date: 2014-04-22
+Authors@R: c(person("Alessandro", "Mammana", email="mamana@molgen.mpg.de"),
+    person("Johannes", "Helmuth", email="helmuth@molgen.mpg.de"))
+Author: Alessandro Mammana and Johannes Helmuth
+Maintainer: Alessandro Mammana <mammana@molgen.mpg.de>
+Description: This packages does various operations (count, pileup, coverage) on
+    a given bam file for a specified GenomicRanges object.
+License: MPI
 Depends:
     Rcpp (>= 0.10.6)
 Imports:
     IRanges,
     GenomicRanges
 LinkingTo: Rcpp
-Collate:
-    'RcppExports.R'
-    'wrappers.R'
