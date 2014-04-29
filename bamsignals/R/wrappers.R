@@ -58,8 +58,11 @@ NULL
 #'		\item{format}{This element is present if pu$counts is formatted
 #' 	differently than a simple vector and it describes the formatting.}
 #' @export
-pileup <- function(gr, bampath, binsize=1, mapqual=0, shift=0, ss=F, format=T, paired.end=F, paired.end.midpoint=F, paired.end.max.frag.length=1000){
-	#printStupidSentence()
+pileup <- function(gr, bampath, binsize=1, mapqual=0, shift=0, ss=F, format=T, paired.end=F, paired.end.midpoint=F, paired.end.max.frag.length=1000, verbose=T){
+    	if (verbose) {
+		cat( "Processing ", bampath, " and ") 
+		printStupidSentence()
+	}
 	if (binsize < 1){
 		stop("provide a binsize greater or equal to 1")
 	} else if (binsize > 1 && any((width(gr) %% binsize) != 0)){
@@ -120,8 +123,12 @@ pileup <- function(gr, bampath, binsize=1, mapqual=0, shift=0, ss=F, format=T, p
 #'		\item{format} This element is present if pu$counts is formatted
 #' 	differently than a simple vector and it describes the formatting.
 #' @export
-depth <- function(gr, bampath, mapqual=0, format=T, paired.end=F, paired.end.max.frag.length=1000){
-	#printStupidSentence()
+depth <- function(gr, bampath, mapqual=0, format=T, paired.end=F, paired.end.max.frag.length=1000, verbose=T){
+    	if (verbose) {
+		cat( "Processing ", bampath, " and ") 
+		printStupidSentence()
+	}
+	printStupidSentence()
 	pu <- coverage_core(gr, bampath, mapqual, paired.end, paired.end.max.frag.length);
 	if (format && all(width(gr)==width(gr[1]))){
 		locus_width <- width(gr[1])
@@ -158,8 +165,11 @@ depth <- function(gr, bampath, mapqual=0, format=T, paired.end=F, paired.end.max
 #' a good pick.
 #' @return a vector or a matrix with the counts
 #' @export
-count <- function(gr, bampath, mapqual=0, shift=0, ss=F, paired.end=F, paired.end.midpoint=F, paired.end.max.frag.length=1000){
-	#printStupidSentence()
+count <- function(gr, bampath, mapqual=0, shift=0, ss=F, paired.end=F, paired.end.midpoint=F, paired.end.max.frag.length=1000, verbose=T){
+    	if (verbose) {
+		cat( "Processing ", bampath, " and ") 
+		printStupidSentence()
+	}
 	pu <- pileup_core(gr, bampath, mapqual, max(width(gr)), shift, ss, paired.end, paired.end.midpoint, paired.end.max.frag.length)
 	if (ss) {
 		dim(pu$counts) <- c(2, length(gr))
