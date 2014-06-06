@@ -2,7 +2,7 @@
 \alias{getSignal}
 \title{Handle the output of the \code{pileup} and \code{coverage} functions.}
 \usage{
-  getSignal(pu, n)
+getSignal(pu, n)
 }
 \arguments{
   \item{pu}{output of a \code{pileup} function call}
@@ -11,7 +11,7 @@
   object used in the pileup function call.}
 }
 \description{
-  Extract the signal corresponding to a specified range
-  maintaining the correct formatting.
+Extract the signal corresponding to a specified range
+maintaining the correct formatting.
 }
 
