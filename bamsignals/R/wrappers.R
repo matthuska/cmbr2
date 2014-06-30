@@ -59,7 +59,7 @@ NULL
 #' 	differently than a simple vector and it describes the formatting.}
 #' @export
 pileup <- function(gr, bampath, binsize=1, mapqual=0, shift=0, ss=F, format=T, paired.end=F, paired.end.midpoint=F, paired.end.max.frag.length=1000){
-	#printStupidSentence()
+	printStupidSentence()
 	if (binsize < 1){
 		stop("provide a binsize greater or equal to 1")
 	} else if (binsize > 1 && any((width(gr) %% binsize) != 0)){
@@ -194,7 +194,9 @@ printStupidSentence <- function(){
 	"tHaT'S tHa fAStEsT pIlE-uP bAm iN tHe SoUth!!!\n",
 	"yOu cAn'T pIlE-Up FaStEr!!!\n",
 	"I'M gOnNa cHaSe'em and PiLe'em aLl up!!!\n",
-	"fOr brOoMmHiLdA!!!\n")
+	"fOr brOoMmHiLdA!!!\n",
+	"tHe lEgEnD said, hE cOuLd PiLe uP fAsTeR thAn LiGht\n",
+	"I gEt gOoSeBuMPs wHen I seE yOu pilEuPpiNg...\n")
 	cat(sample(sentences, 1))
 }
 
