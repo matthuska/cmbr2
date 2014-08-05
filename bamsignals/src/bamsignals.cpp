@@ -154,8 +154,9 @@ static List allocateAndDistributeMemory(std::vector<GArray>& ranges, int binsize
 	Iint i_starts = starts.begin(); Iint i_ends = ends.begin();
 	for (; i_ranges < e_ranges; ++i_ranges, ++i_ends, ++i_starts){
 		*i_starts = pos+1;//in R indices are 1-indexed... 
-		pos += mult*ceil((i_ranges->len)/((float)binsize));
+		pos += mult*ceil((i_ranges->len)/((double)binsize));
 		*i_ends = pos;//and intervals are right-closed
+		if (pos < 0) Rcpp::stop("Integer overflow: genomic ranges too large");
 	}
 	
 	IntegerVector counts(pos);
@@ -509,6 +510,7 @@ void loop(std::string bampath){
 	bam_destroy1(read);
 	bfile.close();
 }
+
 
 // [[Rcpp::export]]
 Rcpp::List subsetCounts(Rcpp::IntegerVector counts, Rcpp::IntegerVector start, Rcpp::IntegerVector width, Rcpp::LogicalVector strand){

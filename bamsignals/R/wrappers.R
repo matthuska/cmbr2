@@ -203,7 +203,9 @@ printStupidSentence <- function(){
 	"tHaT'S tHa fAStEsT pIlE-uP bAm iN tHe SoUth!!!\n",
 	"yOu cAn'T pIlE-Up FaStEr!!!\n",
 	"I'M gOnNa cHaSe'em and PiLe'em aLl up!!!\n",
-	"fOr brOoMmHiLdA!!!\n")
+	"fOr brOoMmHiLdA!!!\n",
+	"tHe lEgEnD said, hE cOuLd PiLe uP fAsTeR thAn LiGht\n",
+	"I gEt gOoSeBuMPs wHen I seE yOu pilEuPpiNg...\n")
 	cat(sample(sentences, 1))
 }
 

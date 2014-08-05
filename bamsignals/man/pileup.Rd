@@ -2,8 +2,9 @@
 \alias{pileup}
 \title{Pileup reads from a bam file.}
 \usage{
-  pileup(gr, bampath, binsize = 1, mapqual = 0, shift = 0,
-    ss = F, format = T)
+pileup(gr, bampath, binsize = 1, mapqual = 0, shift = 0, ss = F,
+  format = T, paired.end = F, paired.end.midpoint = F,
+  paired.end.max.frag.length = 1000)
 }
 \arguments{
   \item{gr}{GenomicRanges object used to specify the
@@ -38,28 +39,45 @@
   strand-specific one dimension will correspond to sense
   and anti-sense strand, if the ranges have all the same
   width one dimension will correspond to the range number.}
+
+  \item{paired.end}{a logical value indicating whether the
+  bampath contains paired-end sequencing output. In this
+  case, only first reads in proper pairs are considered
+  (FLAG 66).}
+
+  \item{paired.end.midpoint}{a logical value indicating
+  whether the fragment middle points of each fragment
+  should be counted. Therefore it uses the tlen information
+  from the given bam file (MidPoint = fragment_start + int(
+  abs(tlen) / 2) )). For even tlen, the given midpoint is
+  the round half down real midpoint.}
+
+  \item{paired.end.max.frag.length}{an integer indicating
+  which fragments should be considered in paired-end
+  sequencing data. Default value of 1,000 bases is
+  generally a good pick.}
 }
 \value{
-  a list with the following arguments: \item{counts}{the
-  vector containing the read counts. This will be formatted
-  into a matrix or an array depending on whether the
-  profile is strand-specific and whether the ranges have
-  all the same length.} \item{starts, ends}{Vectors
-  defining the boundaries of the count vector.  To extract
-  counts relative to the i-th range, use
-  \code{as.numeric(counts)[starts[i]:ends[i]]}, or the
-  \code{getSignal} function to preserve the formatting.}
-  \item{format}{This element is present if pu$counts is
-  formatted differently than a simple vector and it
-  describes the formatting.}
+a list with the following arguments: \item{counts}{the
+vector containing the read counts. This will be formatted
+into a matrix or an array depending on whether the profile
+is strand-specific and whether the ranges have all the same
+length.} \item{starts, ends}{Vectors defining the
+boundaries of the count vector.  To extract counts relative
+to the i-th range, use
+\code{as.numeric(counts)[starts[i]:ends[i]]}, or the
+\code{getSignal} function to preserve the formatting.}
+\item{format}{This element is present if pu$counts is
+formatted differently than a simple vector and it describes
+the formatting.}
 }
 \description{
-  Compute read density in the regions specified by a
-  GenomicRanges object. A read position is always specified
-  by its 5' end, so a read mapping to the reference strand
-  is positioned at its leftmost coordinate, a read mapping
-  to the alternative strand is positioned at its rightmost
-  coordinate. To change that use the \code{shift} parameter
-  or the \code{coverage} function.
+Compute read density in the regions specified by a
+GenomicRanges object. A read position is always specified
+by its 5' end, so a read mapping to the reference strand is
+positioned at its leftmost coordinate, a read mapping to
+the alternative strand is positioned at its rightmost
+coordinate. To change that use the \code{shift} parameter
+or the \code{coverage} function.
 }
 

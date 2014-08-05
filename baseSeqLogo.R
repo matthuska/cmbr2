@@ -126,7 +126,7 @@ baseSeqLogo <- function (pwm, ic.scale = TRUE, xlab = "Position", ylim = NULL, .
 	if (ic.scale) {
 		ylab <- "bits"
 		facs <- pwm2ic(pwm)
-		if (is.null(ylim)) ylim <- max(facs)
+		if (is.null(ylim)) ylim <- 0.95*max(facs) + 0.05
 	}
 	else {
 		ylim <- 1
