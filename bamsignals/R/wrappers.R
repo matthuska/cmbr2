@@ -120,7 +120,7 @@ pileup <- function(gr, bampath, binsize=1, mapqual=0, shift=0, ss=F, format=T, p
 #' 	To extract counts relative to the i-th range, use 
 #'		\code{as.numeric(counts)[starts[i]:ends[i]]}, 
 #' 	or the \code{getSignal} function to preserve the formatting.}
-#'		\item{format} This element is present if pu$counts is formatted
+#'		\item{format} This element is present if counts is formatted
 #' 	differently than a simple vector and it describes the formatting.
 #' @export
 depth <- function(gr, bampath, mapqual=0, format=T, paired.end=F, paired.end.max.frag.length=1000, verbose=T){
