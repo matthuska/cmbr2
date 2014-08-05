@@ -128,7 +128,6 @@ depth <- function(gr, bampath, mapqual=0, format=T, paired.end=F, paired.end.max
 		cat( "Processing ", bampath, " and ") 
 		printStupidSentence()
 	}
-	printStupidSentence()
 	pu <- coverage_core(gr, bampath, mapqual, paired.end, paired.end.max.frag.length);
 	if (format && all(width(gr)==width(gr[1]))){
 		locus_width <- width(gr[1])
