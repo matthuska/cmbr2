@@ -23,8 +23,8 @@ inline int fiveprimepos(const bam1_t *b, int strand){
 }
 
 //helmuth 2014-03-31
-inline bool isProperFirstInPair(const bam1_t *b){ // take only reads with flags 83 (1st on -strand in proper pair) and 99 (1st on +strand in proper pair)
-    return ( ((b->core).flag & BAM_FPROPER_PAIR) && ((b->core).flag & BAM_FREAD1) );
+inline bool isProperPaired(const bam1_t *b){ 
+    return ((b->core).flag & BAM_FPROPER_PAIR);
 }
 
 typedef NumericVector::iterator Idouble;
@@ -313,7 +313,7 @@ static void overlapAndPileupPairedEnd(Bamfile& bfile, std::vector<TRegion>& rang
 		//loop through the reads
 		while (bam_iter_read((bfile.in)->x.bam, iter, read) >= 0){
 
-		    if ( isProperFirstInPair( read ) && ( (read->core).qual >= mapqual) ){ //only take first read in proper pair mapping + mapq threshold
+		    if ( isProperPaired( read ) && ( (read->core).qual >= mapqual) ){ //only take first read in proper pair mapping + mapq threshold
 			int r_start = (read->core).pos;
 			//skip non-overlapping regions at the beginning
 			while (curr_range < chunk_end && r_start >= ranges[curr_range].end() + window) ++curr_range;

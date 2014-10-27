@@ -605,9 +605,8 @@ reducedSmoothScatter <- function( x, y, quant=.99, colramp=colorRampPalette(c("w
 	part = sample( 1:length(x), length(x)*part)
 	x.sub = x[part]
 	y.sub = y[part]
-	selected = which( x.sub < quantile(x.sub, quant) & y.sub < quantile(y.sub, quant) )
-	smoothScatter( x.sub[ selected ], y.sub[ selected ], colramp=colramp, xlab=deparse(substitute(x)),
-				  ylab=deparse(substitute(y)), ...) 
+	selected = which( x.sub < quantile(x.sub, quant, na.rm=T) & y.sub < quantile(y.sub, quant, na.rm=T) )
+	smoothScatter( x.sub[ selected ], y.sub[ selected ], colramp=colramp, ...) 
 }
 
 reducedLogSmoothScatter <- function( x, y, quant=.99, colramp=colorRampPalette(c("white", blues9)), part=.1, ...) {
