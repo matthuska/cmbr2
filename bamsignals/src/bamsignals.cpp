@@ -321,7 +321,7 @@ static void overlapAndPileupPairedEnd(Bamfile& bfile, std::vector<TRegion>& rang
 			if (curr_range == chunk_end) break; 
 
 			int r_end = bam_calend(&(read->core), bam1_cigar(read)) -1;
-			int r_fraglength = abs((read->core).isize);
+			int r_fraglength = (read->core).isize;
 			int r_shift = shift;
 
 			//if we want to count midpoints of the fragments we have to change r_end
