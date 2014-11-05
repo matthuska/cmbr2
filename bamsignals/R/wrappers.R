@@ -38,8 +38,8 @@ NULL
 #' and anti-sense strand, if the ranges have all the same width one dimension
 #' will correspond to the range number.
 #' @param paired.end a logical value indicating whether the bampath contains paired-end 
-#' sequencing output. In this case, only first reads in proper pairs are considered 
-#' (FLAG 66).
+#' sequencing output. In this case, only properly paired reads are considered 
+#' (FLAG 2).
 #' @param paired.end.midpoint a logical value indicating whether the fragment middle 
 #' points of each fragment should be counted. Therefore it uses the tlen information from
 #' the given bam file (MidPoint = fragment_start + int( abs(tlen) / 2) )). For even tlen, 
@@ -58,8 +58,11 @@ NULL
 #'		\item{format}{This element is present if pu$counts is formatted
 #' 	differently than a simple vector and it describes the formatting.}
 #' @export
-pileup <- function(gr, bampath, binsize=1, mapqual=0, shift=0, ss=F, format=T, paired.end=F, paired.end.midpoint=F, paired.end.max.frag.length=1000){
-	printStupidSentence()
+pileup <- function(gr, bampath, binsize=1, mapqual=0, shift=0, ss=F, format=T, paired.end=F, paired.end.midpoint=F, paired.end.max.frag.length=1000, verbose=T){
+    	if (verbose) {
+		cat( "Processing ", bampath, " and ") 
+		printStupidSentence()
+	}
 	if (binsize < 1){
 		stop("provide a binsize greater or equal to 1")
 	} else if (binsize > 1 && any((width(gr) %% binsize) != 0)){
@@ -105,8 +108,8 @@ pileup <- function(gr, bampath, binsize=1, mapqual=0, shift=0, ss=F, format=T, p
 #' @param format if the ranges have all the same width this method
 #' will return a matrix.
 #' @param paired.end a logical value indicating whether the bampath contains paired-end 
-#' sequencing output. In this case, only first reads in proper pairs are considered 
-#' (FLAG 66).
+#' sequencing output. In this case, only properly paired reads are considered 
+#' (FLAG 2).
 #' @param paired.end.max.frag.length an integer indicating which fragments should be 
 #' considered in paired-end sequencing data. Default value of 1,000 bases is generally
 #' a good pick.
@@ -117,11 +120,14 @@ pileup <- function(gr, bampath, binsize=1, mapqual=0, shift=0, ss=F, format=T, p
 #' 	To extract counts relative to the i-th range, use 
 #'		\code{as.numeric(counts)[starts[i]:ends[i]]}, 
 #' 	or the \code{getSignal} function to preserve the formatting.}
-#'		\item{format} This element is present if pu$counts is formatted
+#'		\item{format} This element is present if counts is formatted
 #' 	differently than a simple vector and it describes the formatting.
 #' @export
-depth <- function(gr, bampath, mapqual=0, format=T, paired.end=F, paired.end.max.frag.length=1000){
-	printStupidSentence()
+depth <- function(gr, bampath, mapqual=0, format=T, paired.end=F, paired.end.max.frag.length=1000, verbose=T){
+	if (verbose) {
+		cat( "Processing ", bampath, " and ") 
+		printStupidSentence()
+	}
 	pu <- coverage_core(gr, bampath, mapqual, paired.end, paired.end.max.frag.length);
 	if (format && all(width(gr)==width(gr[1]))){
 		locus_width <- width(gr[1])
@@ -147,8 +153,8 @@ depth <- function(gr, bampath, mapqual=0, format=T, paired.end=F, paired.end.max
 #' @param ss produce a strand-specific count or ignore the strand of the read. Strand-specific counts
 #' will be returned in a 2*length(gr) matrix.
 #' @param paired.end a logical value indicating whether the bampath contains paired-end 
-#' sequencing output. In this case, only first reads in proper pairs are considered 
-#' (FLAG 66).
+#' sequencing output. In this case, only properly paired reads are considered 
+#' (FLAG 2).
 #' @param paired.end.midpoint a logical value indicating whether the fragment middle 
 #' points of each fragment should be counted. Therefore it uses the tlen information from
 #' the given bam file (MidPoint = fragment_start + int( abs(tlen) / 2) )). For even tlen, 
@@ -158,8 +164,11 @@ depth <- function(gr, bampath, mapqual=0, format=T, paired.end=F, paired.end.max
 #' a good pick.
 #' @return a vector or a matrix with the counts
 #' @export
-count <- function(gr, bampath, mapqual=0, shift=0, ss=F, paired.end=F, paired.end.midpoint=F, paired.end.max.frag.length=1000){
-	#printStupidSentence()
+count <- function(gr, bampath, mapqual=0, shift=0, ss=F, paired.end=F, paired.end.midpoint=F, paired.end.max.frag.length=1000, verbose=T){
+    	if (verbose) {
+		cat( "Processing ", bampath, " and ") 
+		printStupidSentence()
+	}
 	pu <- pileup_core(gr, bampath, mapqual, max(width(gr)), shift, ss, paired.end, paired.end.midpoint, paired.end.max.frag.length)
 	if (ss) {
 		dim(pu$counts) <- c(2, length(gr))
