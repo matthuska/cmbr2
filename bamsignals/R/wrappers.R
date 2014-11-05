@@ -121,7 +121,7 @@ pileup <- function(gr, bampath, binsize=1, mapqual=0, shift=0, ss=F, format=T, p
 #' 	differently than a simple vector and it describes the formatting.
 #' @export
 depth <- function(gr, bampath, mapqual=0, format=T, paired.end=F, paired.end.max.frag.length=1000){
-	#printStupidSentence()
+	printStupidSentence()
 	pu <- coverage_core(gr, bampath, mapqual, paired.end, paired.end.max.frag.length);
 	if (format && all(width(gr)==width(gr[1]))){
 		locus_width <- width(gr[1])
