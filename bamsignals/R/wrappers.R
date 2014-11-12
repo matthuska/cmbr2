@@ -1,17 +1,3 @@
-#' Efficient counting of reads in a bam files
-#'
-#' Functions for extracting signals from a bam file. Differently than the other packages,
-#' this package cannot be used to import reads in R.
-#' All the read-processing is done in C/C++ and the only output are read counts. 
-#'
-#' @name bamsignals
-#' @import IRanges
-#' @import GenomicRanges
-#' @docType package
-#' @author Alessandro Mammana \email{mammana@@molgen.mpg.de}
-#' @author Johannes Helmuth \email{helmuth@@molgen.mpg.de}
-#' @useDynLib bamsignals
-NULL
 #' Pileup reads from a bam file.
 #'
 #' Compute read density in the regions specified by a GenomicRanges object.
@@ -38,8 +24,8 @@ NULL
 #' and anti-sense strand, if the ranges have all the same width one dimension
 #' will correspond to the range number.
 #' @param paired.end a logical value indicating whether the bampath contains paired-end 
-#' sequencing output. In this case, only properly paired reads are considered 
-#' (FLAG 2).
+#' sequencing output. In this case, only first reads in proper mapped pairs are considered 
+#' (FLAG 66).
 #' @param paired.end.midpoint a logical value indicating whether the fragment middle 
 #' points of each fragment should be counted. Therefore it uses the tlen information from
 #' the given bam file (MidPoint = fragment_start + int( abs(tlen) / 2) )). For even tlen, 
@@ -108,8 +94,8 @@ pileup <- function(gr, bampath, binsize=1, mapqual=0, shift=0, ss=F, format=T, p
 #' @param format if the ranges have all the same width this method
 #' will return a matrix.
 #' @param paired.end a logical value indicating whether the bampath contains paired-end 
-#' sequencing output. In this case, only properly paired reads are considered 
-#' (FLAG 2).
+#' sequencing output. In this case, only first reads in proper mapped pairs are considered 
+#' (FLAG 66).
 #' @param paired.end.max.frag.length an integer indicating which fragments should be 
 #' considered in paired-end sequencing data. Default value of 1,000 bases is generally
 #' a good pick.
@@ -153,8 +139,8 @@ depth <- function(gr, bampath, mapqual=0, format=T, paired.end=F, paired.end.max
 #' @param ss produce a strand-specific count or ignore the strand of the read. Strand-specific counts
 #' will be returned in a 2*length(gr) matrix.
 #' @param paired.end a logical value indicating whether the bampath contains paired-end 
-#' sequencing output. In this case, only properly paired reads are considered 
-#' (FLAG 2).
+#' sequencing output. In this case, only first reads in proper mapped pairs are considered 
+#' (FLAG 66).
 #' @param paired.end.midpoint a logical value indicating whether the fragment middle 
 #' points of each fragment should be counted. Therefore it uses the tlen information from
 #' the given bam file (MidPoint = fragment_start + int( abs(tlen) / 2) )). For even tlen, 

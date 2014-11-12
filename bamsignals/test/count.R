@@ -9,7 +9,7 @@
 require(bamsignals)
 require(GenomicRanges)
 bed <- scan("data/regions.bed", what=list(character(), numeric(), numeric(), character(), character(), character()), skip="#")
-gr <- GRanges(seqnames=bed[[1]], ranges=IRanges(start=bed[[2]]+1,end=bed[[3]]), strand=bed[[6]])
+gr <- GRanges(seqnames=bed[[1]], ranges=IRanges(start=bed[[2]],end=bed[[3]]), strand=bed[[6]])
 
 # Single End data
 bampath <- "data/Toy_SE.bam"

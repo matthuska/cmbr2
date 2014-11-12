@@ -23,8 +23,9 @@ inline int fiveprimepos(const bam1_t *b, int strand){
 }
 
 //helmuth 2014-03-31
-inline bool isProperPaired(const bam1_t *b){ 
-    return ((b->core).flag & BAM_FPROPER_PAIR);
+//helmuth 2014-11-10: Consider only first read in a proper mapped pair (SAM FLAG 66)
+inline bool isFirstInProperMappedPair(const bam1_t *b){ 
+	return ( ((b->core).flag & BAM_FPROPER_PAIR) && ((b->core).flag & BAM_FREAD1) );
 }
 
 typedef NumericVector::iterator Idouble;
@@ -271,9 +272,7 @@ static void overlapAndPileup(Bamfile& bfile, std::vector<TRegion>& ranges, int m
 }
 
 //helmuth 2014-04-08: PairedEnd implementation of overlapAndPileupPairedEnd. This is used by pileup_core() and coverage_core()
-//- only counts one read in pair (reference strand)
-//
-//TODO: Should we also implement an argument for minimum fragment length?
+//- only considers first read in a proper mapped pair (MAPQ 66, can be positive or negative strand)
 template <class TRegion, class TPileup>
 static void overlapAndPileupPairedEnd(Bamfile& bfile, std::vector<TRegion>& ranges, int mapqual, int shift, TPileup& pileupper, int maxgap, bool pe_mid, int maxfraglength){
 
@@ -313,7 +312,7 @@ static void overlapAndPileupPairedEnd(Bamfile& bfile, std::vector<TRegion>& rang
 		//loop through the reads
 		while (bam_iter_read((bfile.in)->x.bam, iter, read) >= 0){
 
-		    if ( isProperPaired( read ) && ( (read->core).qual >= mapqual) ){ //only take first read in proper pair mapping + mapq threshold
+		    if ( isFirstInProperMappedPair( read ) && ( (read->core).qual >= mapqual) ){ //only take first read in proper pair mapping + mapq threshold
 			int r_start = (read->core).pos;
 			//skip non-overlapping regions at the beginning
 			while (curr_range < chunk_end && r_start >= ranges[curr_range].end() + window) ++curr_range;
@@ -321,16 +320,15 @@ static void overlapAndPileupPairedEnd(Bamfile& bfile, std::vector<TRegion>& rang
 			if (curr_range == chunk_end) break; 
 
 			int r_end = bam_calend(&(read->core), bam1_cigar(read)) -1;
-			int r_fraglength = (read->core).isize;
 			int r_shift = shift;
 
 			//if we want to count midpoints of the fragments we have to change r_end
 			if (pe_mid) {
-			    r_shift = r_shift + r_fraglength/2; //move counting position relative to fragment middle point
+			    r_shift = r_shift + abs((read->core).isize)/2; //move counting position relative to fragment middle point
 			}
 
 			//temp
-			//Rcout << "\t FLAG: " << (read->core).flag << "___" << (read->core).tid << ":" << r_start << "-" << r_end << "; ReadLength:" << (read->core).l_qseq << "; MPOS:" << (read->core).mpos << "; ISIZE:" << r_fraglength << std::endl;
+			//Rcout << "\t FLAG: " << (read->core).flag << "___" << (read->core).tid << ":" << r_start << "-" << r_end << "; ReadLength:" << (read->core).l_qseq << "; MPOS:" << (read->core).mpos << "; ISIZE:" << abs((read->core).isize) << std::endl;
 
 			for (unsigned int range = curr_range; range < chunk_end && ranges[range].loc - window <= r_end; ++range){
 			    //Rcout << "Range No " << range << " with " << ranges[range].loc << "-" << ranges[range].end() << ", strand " << ranges[range].strand << std::endl;
