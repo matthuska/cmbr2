@@ -1,3 +1,17 @@
+#' Efficient counting of reads in a bam files
+#'
+#' Functions for extracting signals from a bam file. Differently than the other packages,
+#' this package cannot be used to import reads in R.
+#' All the read-processing is done in C/C++ and the only output are read counts. 
+#'
+#' @name bamsignals
+#' @import IRanges
+#' @import GenomicRanges
+#' @docType package
+#' @author Alessandro Mammana \email{mammana@@molgen.mpg.de}
+#' @author Johannes Helmuth \email{helmuth@@molgen.mpg.de}
+#' @useDynLib bamsignals
+NULL
 #' Pileup reads from a bam file.
 #'
 #' Compute read density in the regions specified by a GenomicRanges object.
