@@ -1,3 +1,0 @@
-When using a GRanges object >= 632610 and parallel::mclapply():
-Error in sendMaster(try(lapply(S, FUN, ...), silent = TRUE)) : 
-  long vectors not supported yet: /scratch/local/bee-root/mariux64-R/mariux64-R-3.1.0-1/source/src/main/memory.c:3308
