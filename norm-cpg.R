@@ -38,11 +38,10 @@ cpg_GR <- function(genome, regions, threshold=.5) {
   cpg = dinucleotideFrequency(seq)
   cpg = cpg[,"CG"] / apply(cpg, 1, sum)
 
-  # compute the expected cpg content as freq of c*g from a small
-  # chromosome (20)
-  freq = alphabetFrequency(genome[[20]])
+  # compute the expected cpg content as freq of c*g from same region
+  freq = oligonucleotideFrequency(seq, width=1)
 
-  expected = freq["C"] / sum(freq) * freq["G"] / sum(freq)
+  expected = freq[,"C"] / rowSums(freq) * freq[,"G"] / rowSums(freq)
   ratio = cpg / expected
 
   cpg.status = c("lcpg", "hcpg")[as.numeric(ratio > threshold) + 1]
