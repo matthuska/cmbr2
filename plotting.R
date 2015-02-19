@@ -622,3 +622,74 @@ reducedLogSmoothScatter <- function( x, y, quant=.99, colramp=colorRampPalette(c
 	smoothScatter( x.sub[ selected ], y.sub[ selected ], colramp=colramp, xlab=deparse(substitute(x)),
 				  ylab=deparse(substitute(y)), ...)
 }
+
+#' Plots a scatter plot along a choosen region and find genes in that region
+region.scatter <- function(counts, counts.classes, y.labels, chrom="chr1",
+                           region=NULL, bin.size=300, plot.genes=T, span=NULL, ... ) {
+  cat( "Constructing regions\n" )
+  if ( is.null(region) ) {
+    region <- c(1, length(counts[[1]]) * bin.size )
+  }
+  s <- floor(region[1] / bin.size + 1):floor(region[2] / bin.size )
+  n <- length(counts)
+  m <- length(s)
+  x.coords <- s*bin.size
+  offset <- 0
+
+  if (is.null(span)) {
+    span = 10/length(x.coords)
+  }
+
+  #find genes
+  if (plot.genes) {
+    n <- n+1
+    cat( "Finding genes\n" )
+    genelist <- read.delim("data/hg19.gencodeV19.tab", stringsAsFactors=F)
+    genelist <- genelist[ genelist$chrom == chrom,]
+    genelist <- genelist[ order(genelist$txStart), ]
+    genes.in.locus <- subset(genelist, ( genelist$txStart > region[1] & genelist$txStart < region[2] ) | ( genelist$txEnd > region[1] & genelist$txEnd < region[2]) )
+    genes.in.locus <- genes.in.locus[ !duplicated( genes.in.locus$txStart ),]
+    print(genes.in.locus)
+  }
+
+  #plotting
+  par(mfrow=c(n, 1))
+  if( plot.genes ) {
+    cat( "Plotting genes\n" )
+    plot(x.coords, rep(0, m), type="n", axes=F, ylab="", xlab="",  ylim=c(-30,0), ...)
+    for ( i in 1:nrow(genes.in.locus) ) {
+      if ( genes.in.locus[i,]$strand == "+" ) {
+        arrows(max(genes.in.locus[i,]$txStart, region[1]), -offset, min(genes.in.locus[i,]$txEnd, region[2]), -offset, length=0.05, lwd=2, code=2, lty="solid", col="darkgreen")
+      } else {
+        arrows(max(genes.in.locus[i,]$txStart, region[1]), -offset, min(genes.in.locus[i,]$txEnd, region[2]), -offset, length=0.05, lwd=2, code=1, lty="solid", col="darkgreen")
+      }
+      if ( ! is.na(genes.in.locus[i,]$name2) ) {
+        cat("Writing", genes.in.locus[i,]$name2, "\n")
+        text(genes.in.locus[i,]$txStart + (genes.in.locus[i,]$txEnd - genes.in.locus[i,]$txStart) / 2, -offset, labels=genes.in.locus[i,]$name2, cex=0.8)
+      }
+      offset <- offset+3
+      if (offset == 30)
+        offset <- 0
+    }
+  }
+  cat( "Plotting data\n" )
+  for ( i in 1:length(counts) ) {
+    scatter.smooth(x.coords,
+                   counts[[i]][s],
+                   ylab=y.labels[i],
+                   xlab="",
+                   col=adjustcolor(counts.classes[[i]][s], alpha.f=.6),
+                   span=span,
+                   degree=0,
+                   family="gaussian",
+                   evaluation=100,
+                   pch=20,
+                   xaxt="n",
+                   #ylim=c(0, quantile(counts[[i]][s], .999)),
+                   bty="n"
+                   )
+    grid()
+  }
+
+  axis(1, las=2)
+}
